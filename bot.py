@@ -223,11 +223,10 @@ async def get_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         "شماره تماس خود را ارسال کنید:",
-        reply_markup=ReplyKeyboardMarkup(
-            [[button]],
-            resize_keyboard=True,
-            one_time_keyboard=True
-        )
+       reply_markup=ReplyKeyboardMarkup(
+    [[button]],
+    resize_keyboard=True
+)
     )
 
 
