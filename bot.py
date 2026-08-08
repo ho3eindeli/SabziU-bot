@@ -290,19 +290,19 @@ def main():
         ],
 
         states={
-            NAME: [
-                MessageHandler(
-                    filters.TEXT,
-                    get_name
-                )
-            ],
+           NAME: [
+    MessageHandler(
+        filters.TEXT & ~filters.COMMAND,
+        get_name
+    )
+],
 
-            PHONE: [
-                MessageHandler(
-                    filters.CONTACT,
-                    get_phone
-                )
-            ]
+PHONE: [
+    MessageHandler(
+        filters.CONTACT,
+        get_phone
+    )
+]
         },
 
         fallbacks=[]
