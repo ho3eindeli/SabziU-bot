@@ -75,3 +75,50 @@ def run():
 
 if __name__ == "__main__":
     run()
+TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("TELEGRAM_BOT_TOKEN is not set")
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = [
+        [InlineKeyboardButton("🛒 فروشگاه", callback_data="shop")],
+        [InlineKeyboardButton("📦 سفارش‌های من", callback_data="orders")],
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await update.message.reply_text(
+        "سلام 👋\n"
+        "به سبزی‌یو خوش آمدید 🌿\n\n"
+        "از منوی زیر انتخاب کنید:",
+        reply_markup=reply_markup
+    )
+
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "shop":
+        await query.edit_message_text(
+            "🛒 فروشگاه سبزی‌یو\n\n"
+            "محصولات به‌زودی اینجا نمایش داده می‌شوند."
+        )
+
+    elif query.data == "orders":
+        await query.edit_message_text(
+            "📦 هنوز سفارشی ثبت نکرده‌اید."
+        )
+
+
+def main():
+    application = Application.builder().token(TOKEN).build()
+
+    application.add_handler(CommandHandler("start", start))
+    application.add_handler(CallbackQueryHandler(button_handler))
+
+    application.run_polling()
+
+
+if __name__ == "__main__":
+    main()
