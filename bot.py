@@ -1,48 +1,36 @@
 import os
 import logging
 
-from telegram import (
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-    KeyboardButton,
-    ReplyKeyboardMarkup
-)
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    CallbackQueryHandler,
-    MessageHandler,
-    ContextTypes,
-    filters
-)
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 
 logging.basicConfig(level=logging.INFO)
+
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
 
 products = {
-    "ghorme": {
-        "name": "🌿 سبزی قورمه سرخ‌شده",
+    "1": {
+        "name": "🌿 سبزی قورمه سرخ شده",
         "price": 180000
     },
-    "kookoo": {
+    "2": {
         "name": "🌿 سبزی کوکو",
         "price": 150000
     },
-    "torshi": {
+    "3": {
         "name": "🥒 ترشی خانگی",
         "price": 120000
     }
 }
 
 
-carts = {}
+cart = {}
 
-customers = {}
+orders = {}
 
 
 
@@ -63,59 +51,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ]
 
+
     await update.message.reply_text(
-        "سلام 👋\n"
-        "به فروشگاه سبزی‌یو خوش آمدید 🌿",
+        "سلام 👋\nبه سبزی‌یو خوش آمدید 🌿",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def shop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     query = update.callback_query
+
     await query.answer()
 
-    user_id = query.from_user.id
+
+    keyboard = []
+
+
+    for key, item in products.items():
+
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    item["name"],
+                    callback_data="product_" + key
+                )
+            ]
+        )
+
+
+    await query.edit_message_text(
+        "🛒 محصولات سبزی‌یو:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+
+
+async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    query = update.callback_query
+
+    await query.answer()
+
+
+    user = query.from_user.id
 
 
     if query.data == "shop":
 
-        keyboard = []
-
-        for key, item in products.items():
-
-            keyboard.append(
-                [
-                    InlineKeyboardButton(
-                        item["name"],
-                        callback_data=key
-                    )
-                ]
-            )
+        await shop(update, context)
 
 
-        await query.edit_message_text(
-            "🛒 محصولات سبزی‌یو:",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
 
+    elif query.data.startswith("product_"):
 
-    elif query.data in products:
+        pid = query.data.replace("product_", "")
 
-        item = products[query.data]
+        item = products[pid]
+
 
         keyboard = [
             [
                 InlineKeyboardButton(
                     "➕ افزودن به سبد",
-                    callback_data="add_" + query.data
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    "🧺 مشاهده سبد",
-                    callback_data="cart"
+                    callback_data="add_" + pid
                 )
             ],
             [
@@ -126,49 +126,56 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
 
-               await query.edit_message_text(
+
+        await query.edit_message_text(
             f"{item['name']}\n"
-            f"💰 قیمت: {item['price']:,} تومان",
+            f"💰 {item['price']:,} تومان",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+      elif query.data.startswith("add_"):
+
+        pid = query.data.replace("add_", "")
+
+
+        if user not in cart:
+
+            cart[user] = []
+
+
+        cart[user].append(pid)
+
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🧺 مشاهده سبد خرید",
+                    callback_data="cart"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🛒 ادامه خرید",
+                    callback_data="shop"
+                )
+            ]
+        ]
+
+
+        await query.edit_message_text(
+            "✅ محصول به سبد خرید اضافه شد.",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
 
-    elif query.data.startswith("add_"):
-
-        product_id = query.data.replace("add_", "")
-
-        if user_id not in carts:
-            carts[user_id] = []
-
-        carts[user_id].append(product_id)
-
-        await query.edit_message_text(
-            "✅ محصول به سبد خرید اضافه شد.",
-            reply_markup=InlineKeyboardMarkup(
-                [
-                    [
-                        InlineKeyboardButton(
-                            "🧺 مشاهده سبد خرید",
-                            callback_data="cart"
-                        )
-                    ],
-                    [
-                        InlineKeyboardButton(
-                            "🛒 ادامه خرید",
-                            callback_data="shop"
-                        )
-                    ]
-                ]
-            )
-        )
-
 
     elif query.data == "cart":
 
-        if user_id not in carts or not carts[user_id]:
+
+        if user not in cart or len(cart[user]) == 0:
+
 
             await query.edit_message_text(
-                "🧺 سبد خرید شما خالی است.",
+                "🧺 سبد خرید خالی است.",
                 reply_markup=InlineKeyboardMarkup(
                     [
                         [
@@ -184,24 +191,26 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
 
-        text = "🧺 سبد خرید شما:\n\n"
+
+        text = "🧺 سبد خرید:\n\n"
 
         total = 0
 
 
-        for product_id in carts[user_id]:
+        for pid in cart[user]:
 
-            item = products[product_id]
+            item = products[pid]
 
             text += (
-                f"{item['name']}\n"
-                f"{item['price']:,} تومان\n\n"
+                item["name"]
+                + "\n"
+                + f"{item['price']:,} تومان\n\n"
             )
 
             total += item["price"]
 
 
-        text += f"💰 مبلغ کل: {total:,} تومان"
+        text += f"💰 جمع کل: {total:,} تومان"
 
 
         await query.edit_message_text(
@@ -225,95 +234,77 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+
     elif query.data == "order":
 
-        customers[user_id] = {
+
+        orders[user] = {
             "step": "name",
-            "cart": carts.get(user_id, [])
+            "items": cart[user]
         }
 
 
         await query.message.reply_text(
-            "👤 لطفاً نام و نام خانوادگی خود را وارد کنید:"
+            "👤 نام و نام خانوادگی خود را وارد کنید:"
         )
-async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user_id = update.message.from_user.id
 
 
-    if user_id in customers and customers[user_id]["step"] == "name":
 
-        customers[user_id]["name"] = update.message.text
+async def text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-        customers[user_id]["step"] = "phone"
+    user = update.message.from_user.id
 
 
-        phone_button = KeyboardButton(
+    if user in orders and orders[user]["step"] == "name":
+
+        orders[user]["name"] = update.message.text
+
+        orders[user]["step"] = "phone"
+
+
+        button = KeyboardButton(
             "📱 ارسال شماره تماس",
             request_contact=True
         )
 
 
         await update.message.reply_text(
-            "لطفاً شماره تماس خود را ارسال کنید:",
+            "شماره تماس را ارسال کنید:",
             reply_markup=ReplyKeyboardMarkup(
-                [[phone_button]],
+                [[button]],
                 resize_keyboard=True
             )
         )
 
 
 
-async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
-    user_id = update.message.from_user.id
+    user = update.message.from_user.id
 
 
-    if user_id not in customers:
+    if user not in orders:
+
         return
 
-
-    customer = customers[user_id]
-
-
-    name = customer["name"]
 
     phone = update.message.contact.phone_number
 
 
-    total = 0
-
-    order_items = ""
-
-
-    for product_id in customer["cart"]:
-
-        item = products[product_id]
-
-        order_items += (
-            f"{item['name']}\n"
-            f"{item['price']:,} تومان\n\n"
-        )
-
-        total += item["price"]
-
+    name = orders[user]["name"]
 
 
     await update.message.reply_text(
-        "✅ سفارش شما ثبت شد\n\n"
-        f"👤 نام: {name}\n"
-        f"📱 تلفن: {phone}\n\n"
-        "🏢 محل تحویل:\n"
-        "هیأت امنا (رایگان)\n\n"
-        "🛒 محصولات:\n"
-        f"{order_items}"
-        f"💰 مبلغ کل: {total:,} تومان"
+        "✅ سفارش ثبت شد\n\n"
+        f"👤 {name}\n"
+        f"📱 {phone}\n\n"
+        "🏢 تحویل: هیأت امنا (رایگان)"
     )
 
 
-    customers.pop(user_id, None)
+    cart.pop(user, None)
 
-    carts.pop(user_id, None)
+    orders.pop(user, None)
 
 
 
@@ -332,7 +323,7 @@ def main():
 
     app.add_handler(
         CallbackQueryHandler(
-            button_handler
+            buttons
         )
     )
 
@@ -340,7 +331,7 @@ def main():
     app.add_handler(
         MessageHandler(
             filters.CONTACT,
-            contact_handler
+            contact
         )
     )
 
@@ -348,7 +339,7 @@ def main():
     app.add_handler(
         MessageHandler(
             filters.TEXT & ~filters.COMMAND,
-            text_handler
+            text_message
         )
     )
 
@@ -358,4 +349,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
