@@ -130,7 +130,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{item['name']}\n"
             f"💰 قیمت: {item['price']:,} تومان",
             reply_markup=InlineKeyboardMarkup(keyboard)
-        )    elif query.data.startswith("add_"):
+        )
+            elif query.data.startswith("add_"):
 
         product_id = query.data.replace("add_", "")
 
@@ -232,7 +233,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.message.reply_text(
             "👤 لطفاً نام و نام خانوادگی خود را وارد کنید:"
-        )async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        )
+async def text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.message.from_user.id
 
