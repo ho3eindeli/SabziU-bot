@@ -126,12 +126,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         ]
 
-        await query.edit_message_text(
+               await query.edit_message_text(
             f"{item['name']}\n"
             f"💰 قیمت: {item['price']:,} تومان",
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
-elif query.data.startswith("add_"):
+
+
+    elif query.data.startswith("add_"):
 
         product_id = query.data.replace("add_", "")
 
