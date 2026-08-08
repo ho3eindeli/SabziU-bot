@@ -282,33 +282,25 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.message.from_user.id
 
-
-    if user not in orders:   
-   await update.message.reply_text(
-        "اطلاعات سفارش پیدا نشد، دوباره از فروشگاه شروع کنید."
-    )
-    return
-
+    if user not in orders:
+        await update.message.reply_text(
+            "اطلاعات سفارش پیدا نشد. دوباره از فروشگاه شروع کنید."
+        )
+        return
 
     phone = update.message.contact.phone_number
-    print("CONTACT RECEIVED:", phone)
 
     name = orders[user]["name"]
 
-
     await update.message.reply_text(
         "✅ سفارش ثبت شد\n\n"
-        f"👤 {name}\n"
-        f"📱 {phone}\n\n"
+        f"👤 نام: {name}\n"
+        f"📱 تلفن: {phone}\n\n"
         "🏢 تحویل: هیأت امنا (رایگان)"
     )
 
-
     cart.pop(user, None)
-
     orders.pop(user, None)
-
-
 
 def main():
 
