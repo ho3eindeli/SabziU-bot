@@ -284,12 +284,14 @@ async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if user not in orders:
-
-        return
+    await update.message.reply_text(
+        "اطلاعات سفارش پیدا نشد، دوباره از فروشگاه شروع کنید."
+    )
+    return
 
 
     phone = update.message.contact.phone_number
-
+    print("CONTACT RECEIVED:", phone)
 
     name = orders[user]["name"]
 
