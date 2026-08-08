@@ -10,114 +10,104 @@ logging.basicConfig(
 
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-def main_menu():
-    keyboard = [
-        [InlineKeyboardButton("🛒 فروشگاه", callback_data="shop"),
-         InlineKeyboardButton("🧺 سبد خرید", callback_data="cart")],
-        [InlineKeyboardButton("📦 سفارش‌های من", callback_data="orders"),
-         InlineKeyboardButton("🎁 یو کارت", callback_data="card")],
-        [InlineKeyboardButton("👤 حساب من", callback_data="profile"),
-         InlineKeyboardButton("💬 پشتیبانی", callback_data="support")],
-    ]
-    return InlineKeyboardMarkup(keyboard)
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "🌿 <b>به سبزی یو خوش آمدید!</b>\n\n"
-        "محصولات خانگی سبزی یو را از اینجا ببینید و به‌زودی سفارش خود را ثبت کنید.\n\n"
-        "از منوی زیر انتخاب کنید:"
-    )
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=main_menu())
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    messages = {
-        "shop": "🛒 <b>فروشگاه سبزی یو</b>\n\nفعلاً بخش محصولات در حال آماده‌سازی است. به‌زودی محصولات سایت SabziU.ir اینجا نمایش داده می‌شوند.",
-        "cart": "🧺 سبد خرید شما خالی است.",
-        "orders": "📦 هنوز سفارشی ثبت نکرده‌اید.",
-        "card": "🎁 <b>یو کارت</b>\n\nامتیاز شما: 0\n\nبا خرید از سبزی یو امتیاز جمع کنید.",
-        "profile": "👤 <b>حساب کاربری</b>\n\nاطلاعات حساب شما به‌زودی در این بخش نمایش داده می‌شود.",
-        "support": "💬 <b>پشتیبانی سبزی یو</b>\n\nبرای ارتباط با پشتیبانی، پیام خود را ارسال کنید."
-    }
-
-    text = messages.get(query.data, "گزینه نامعتبر است.")
-    keyboard = [[InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="home")]]
-    await query.edit_message_text(
-        text, parse_mode="HTML",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-async def home_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    await query.edit_message_text(
-        "🌿 <b>سبزی یو</b>\n\nاز منوی زیر انتخاب کنید:",
-        parse_mode="HTML",
-        reply_markup=main_menu()
-    )
-
-def run():
-    if not TOKEN:
-        raise RuntimeError(
-            "TELEGRAM_BOT_TOKEN تنظیم نشده است. "
-            "توکن BotFather را به‌عنوان متغیر محیطی تنظیم کنید."
-        )
-
-    app = Application.builder().token(TOKEN).build()
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CallbackQueryHandler(home_handler, pattern="^home$"))
-    app.add_handler(CallbackQueryHandler(button_handler))
-
-    print("SabziU bot is running...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    run()
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN is not set")
 
+
+products = {
+    "sabzi_ghorme": "🌿 سبزی قورمه سرخ‌شده\n۵۰۰ گرم - ۱۸۰ هزار تومان",
+    "sabzi_kookoo": "🌿 سبزی کوکو\n۵۰۰ گرم - ۱۵۰ هزار تومان",
+    "torshi": "🥒 ترشی خانگی\n۷۰۰ گرم - ۱۲۰ هزار تومان",
+}
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     keyboard = [
         [InlineKeyboardButton("🛒 فروشگاه", callback_data="shop")],
         [InlineKeyboardButton("📦 سفارش‌های من", callback_data="orders")],
+        [InlineKeyboardButton("💚 یو کارت", callback_data="ucard")],
     ]
-
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
     await update.message.reply_text(
         "سلام 👋\n"
-        "به سبزی‌یو خوش آمدید 🌿\n\n"
-        "از منوی زیر انتخاب کنید:",
-        reply_markup=reply_markup
+        "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
+        "محصول موردنظر را انتخاب کنید:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
     query = update.callback_query
     await query.answer()
 
     if query.data == "shop":
+
+        keyboard = []
+
+        for key in products:
+            keyboard.append([
+                InlineKeyboardButton(
+                    products[key].split("\n")[0],
+                    callback_data=key
+                )
+            ])
+
         await query.edit_message_text(
-            "🛒 فروشگاه سبزی‌یو\n\n"
-            "محصولات به‌زودی اینجا نمایش داده می‌شوند."
+            "🛒 محصولات سبزی‌یو:",
+            reply_markup=InlineKeyboardMarkup(keyboard)
         )
 
-    elif query.data == "orders":
+
+    elif query.data in products:
+
+        keyboard = [
+            [
+                InlineKeyboardButton(
+                    "🛍 افزودن به سبد خرید",
+                    callback_data="add_" + query.data
+                )
+            ]
+        ]
+
         await query.edit_message_text(
-            "📦 هنوز سفارشی ثبت نکرده‌اید."
+            products[query.data],
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+
+
+    elif query.data.startswith("add_"):
+
+        await query.edit_message_text(
+            "✅ محصول به سبد خرید اضافه شد.\n"
+            "به‌زودی مرحله ثبت سفارش اضافه می‌شود."
+        )
+
+
+    elif query.data == "orders":
+
+        await query.edit_message_text(
+            "📦 هنوز سفارشی ثبت نشده است."
+        )
+
+
+    elif query.data == "ucard":
+
+        await query.edit_message_text(
+            "💚 یو کارت سبزی‌یو\n"
+            "امتیاز خرید و تخفیف مشتریان وفادار."
         )
 
 
 def main():
-    application = Application.builder().token(TOKEN).build()
 
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(button_handler))
+    app = Application.builder().token(TOKEN).build()
 
-    application.run_polling()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CallbackQueryHandler(button_handler))
+
+    app.run_polling()
 
 
 if __name__ == "__main__":
