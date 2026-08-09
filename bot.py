@@ -19,9 +19,10 @@ from telegram.ext import (
     filters,
 )
 
-# =========================
+
+# =========================================================
 # تنظیمات
-# =========================
+# =========================================================
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -31,13 +32,12 @@ logging.basicConfig(
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID")
 
-# شمارنده سفارش
 ORDER_NUMBER = 1000
 
 
-# =========================
+# =========================================================
 # محصولات
-# =========================
+# =========================================================
 
 PRODUCTS = {
     "fried_1": {
@@ -160,19 +160,23 @@ PRODUCTS = {
 }
 
 
-# =========================
+# =========================================================
 # سبدهای خرید
-# =========================
+#
+# ساختار:
+# carts[user_id] = {
+#     "product_id": quantity
+# }
+# =========================================================
 
 carts = {}
 
 
-# =========================
+# =========================================================
 # منوی اصلی
-# =========================
+# =========================================================
 
 def main_menu():
-
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
@@ -189,12 +193,11 @@ def main_menu():
     ])
 
 
-# =========================
+# =========================================================
 # دسته‌بندی‌ها
-# =========================
+# =========================================================
 
 def categories_keyboard():
-
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
@@ -229,12 +232,11 @@ def categories_keyboard():
     ])
 
 
-# =========================
-# محصولات دسته
-# =========================
+# =========================================================
+# محصولات هر دسته
+# =========================================================
 
 def category_keyboard(category):
-
     keyboard = []
 
     for product_id, product in PRODUCTS.items():
@@ -265,17 +267,50 @@ def category_keyboard(category):
     return InlineKeyboardMarkup(keyboard)
 
 
-# =========================
+# =========================================================
 # صفحه محصول
-# =========================
+# =========================================================
 
-def product_keyboard(product_id):
+def product_keyboard(product_id, user_id):
+
+    quantity = carts.get(user_id, {}).get(product_id, 0)
+
+    if quantity > 0:
+
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "➖",
+                    callback_data=f"dec_{product_id}"
+                ),
+                InlineKeyboardButton(
+                    f"🛒 {quantity}",
+                    callback_data="cart"
+                ),
+                InlineKeyboardButton(
+                    "➕",
+                    callback_data=f"inc_{product_id}"
+                ),
+            ],
+            [
+                InlineKeyboardButton(
+                    "🛒 ادامه خرید",
+                    callback_data="shop"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    "🧺 سبد خرید",
+                    callback_data="cart"
+                )
+            ],
+        ])
 
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
                 "➕ افزودن به سبد",
-                callback_data=f"add_{product_id}"
+                callback_data=f"inc_{product_id}"
             )
         ],
         [
@@ -293,34 +328,60 @@ def product_keyboard(product_id):
     ])
 
 
-# =========================
+# =========================================================
 # سبد خرید
-# =========================
+# =========================================================
 
-def cart_keyboard():
+def cart_keyboard(user_id):
 
-    return InlineKeyboardMarkup([
-        [
+    items = carts.get(user_id, {})
+
+    keyboard = []
+
+    for product_id, quantity in items.items():
+
+        if product_id not in PRODUCTS:
+            continue
+
+        product = PRODUCTS[product_id]
+
+        keyboard.append([
             InlineKeyboardButton(
-                "📦 ثبت سفارش",
-                callback_data="order"
-            )
-        ],
-        [
+                f"➖ {product['name']}",
+                callback_data=f"dec_{product_id}"
+            ),
             InlineKeyboardButton(
-                "🛒 ادامه خرید",
-                callback_data="shop"
-            )
-        ],
+                f"{quantity} عدد",
+                callback_data=f"product_{product_id}"
+            ),
+            InlineKeyboardButton(
+                "➕",
+                callback_data=f"inc_{product_id}"
+            ),
+        ])
+
+    keyboard.append([
+        InlineKeyboardButton(
+            "📦 ثبت سفارش",
+            callback_data="order"
+        )
     ])
 
+    keyboard.append([
+        InlineKeyboardButton(
+            "🛒 ادامه خرید",
+            callback_data="shop"
+        )
+    ])
 
-# =========================
+    return InlineKeyboardMarkup(keyboard)
+
+
+# =========================================================
 # محل تحویل
-# =========================
+# =========================================================
 
 def delivery_keyboard():
-
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
@@ -337,12 +398,11 @@ def delivery_keyboard():
     ])
 
 
-# =========================
+# =========================================================
 # تأیید سفارش
-# =========================
+# =========================================================
 
 def final_order_keyboard():
-
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
@@ -359,9 +419,74 @@ def final_order_keyboard():
     ])
 
 
-# =========================
+# =========================================================
+# محاسبه سبد
+# =========================================================
+
+def calculate_cart(user_id):
+
+    items = carts.get(user_id, {})
+
+    total = 0
+
+    for product_id, quantity in items.items():
+
+        if product_id not in PRODUCTS:
+            continue
+
+        total += PRODUCTS[product_id]["price"] * quantity
+
+    return total
+
+
+# =========================================================
+# متن سبد
+# =========================================================
+
+def cart_text(user_id):
+
+    items = carts.get(user_id, {})
+
+    if not items:
+        return "🧺 سبد خرید شما خالی است."
+
+    total = 0
+
+    lines = ["🧺 سبد خرید شما:\n"]
+
+    item_number = 1
+
+    for product_id, quantity in items.items():
+
+        if product_id not in PRODUCTS:
+            continue
+
+        product = PRODUCTS[product_id]
+
+        subtotal = product["price"] * quantity
+
+        total += subtotal
+
+        lines.append(
+            f"{item_number}. {product['name']}\n"
+            f"   📦 {product['size']}\n"
+            f"   🔢 تعداد: {quantity}\n"
+            f"   💰 قیمت واحد: {product['price']:,} تومان\n"
+            f"   💵 مبلغ: {subtotal:,} تومان\n"
+        )
+
+        item_number += 1
+
+    lines.append(
+        f"💰 جمع کل: {total:,} تومان"
+    )
+
+    return "\n".join(lines)
+
+
+# =========================================================
 # /start
-# =========================
+# =========================================================
 
 async def start(update, context):
 
@@ -375,13 +500,13 @@ async def start(update, context):
     )
 
 
-# =========================
+# =========================================================
 # نمایش سبد
-# =========================
+# =========================================================
 
 async def show_cart(query, user_id):
 
-    items = carts.get(user_id, [])
+    items = carts.get(user_id, {})
 
     if not items:
 
@@ -392,35 +517,64 @@ async def show_cart(query, user_id):
 
         return
 
-    total = 0
+    await query.edit_message_text(
+        cart_text(user_id),
+        reply_markup=cart_keyboard(user_id)
+    )
 
-    lines = ["🧺 سبد خرید شما:\n"]
 
-    for index, product_id in enumerate(items, 1):
+# =========================================================
+# خلاصه سفارش
+# =========================================================
+
+async def show_order_summary(query, context):
+
+    name = context.user_data.get("name", "")
+    phone = context.user_data.get("phone", "")
+    delivery = context.user_data.get("delivery", "")
+
+    user_id = query.from_user.id
+
+    items = carts.get(user_id, {})
+
+    total = calculate_cart(user_id)
+
+    lines = []
+
+    for product_id, quantity in items.items():
 
         product = PRODUCTS[product_id]
 
-        total += product["price"]
+        subtotal = product["price"] * quantity
 
         lines.append(
-            f"{index}. {product['name']}\n"
-            f"   {product['size']} — "
-            f"{product['price']:,} تومان\n"
+            f"• {product['name']}\n"
+            f"  {product['size']} × {quantity}\n"
+            f"  {subtotal:,} تومان"
         )
 
-    lines.append(
-        f"\n💰 جمع کل: {total:,} تومان"
+    text = (
+        "📋 بررسی نهایی سفارش\n\n"
+        f"👤 نام: {name}\n"
+        f"📱 تلفن: {phone}\n"
+        f"📍 محل تحویل: {delivery}\n"
+        "🚚 هزینه تحویل: رایگان\n\n"
+        "🛍 محصولات:\n"
+        + "\n".join(lines)
+        + f"\n\n💰 مبلغ کل: {total:,} تومان\n\n"
+        "اگر اطلاعات صحیح است، "
+        "«تأیید و ثبت سفارش» را بزنید."
     )
 
     await query.edit_message_text(
-        "\n".join(lines),
-        reply_markup=cart_keyboard()
+        text,
+        reply_markup=final_order_keyboard()
     )
 
 
-# =========================
+# =========================================================
 # دکمه‌ها
-# =========================
+# =========================================================
 
 async def buttons(update, context):
 
@@ -433,6 +587,10 @@ async def buttons(update, context):
     data = query.data
 
 
+    # -----------------------------------------------------
+    # فروشگاه
+    # -----------------------------------------------------
+
     if data == "shop":
 
         await query.edit_message_text(
@@ -443,6 +601,10 @@ async def buttons(update, context):
 
         return
 
+
+    # -----------------------------------------------------
+    # دسته‌بندی
+    # -----------------------------------------------------
 
     if data.startswith("category_"):
 
@@ -467,6 +629,10 @@ async def buttons(update, context):
         return
 
 
+    # -----------------------------------------------------
+    # صفحه محصول
+    # -----------------------------------------------------
+
     if data.startswith("product_"):
 
         product_id = data.replace(
@@ -485,22 +651,44 @@ async def buttons(update, context):
 
             return
 
+        quantity = carts.get(
+            user_id,
+            {}
+        ).get(
+            product_id,
+            0
+        )
+
+        quantity_text = ""
+
+        if quantity > 0:
+            quantity_text = (
+                f"\n🛒 تعداد فعلی در سبد: {quantity}"
+            )
+
         await query.edit_message_text(
             f"🌿 {product['name']}\n\n"
             f"📦 {product['size']}\n"
-            f"💰 {product['price']:,} تومان\n\n"
-            "برای اضافه کردن محصول به سبد، "
-            "دکمه زیر را بزنید:",
-            reply_markup=product_keyboard(product_id)
+            f"💰 {product['price']:,} تومان"
+            f"{quantity_text}\n\n"
+            "برای تغییر تعداد از دکمه‌های زیر استفاده کنید:",
+            reply_markup=product_keyboard(
+                product_id,
+                user_id
+            )
         )
 
         return
 
 
-    if data.startswith("add_"):
+    # -----------------------------------------------------
+    # افزایش تعداد
+    # -----------------------------------------------------
+
+    if data.startswith("inc_"):
 
         product_id = data.replace(
-            "add_",
+            "inc_",
             ""
         )
 
@@ -515,35 +703,93 @@ async def buttons(update, context):
 
         carts.setdefault(
             user_id,
-            []
+            {}
         )
 
-        carts[user_id].append(
-            product_id
+        carts[user_id][product_id] = (
+            carts[user_id].get(product_id, 0) + 1
         )
+
+        product = PRODUCTS[product_id]
+
+        quantity = carts[user_id][product_id]
 
         await query.edit_message_text(
-            "✅ محصول به سبد خرید اضافه شد.\n\n"
-            "می‌توانید خرید را ادامه دهید یا "
-            "سبد خرید را مشاهده کنید.",
-            reply_markup=InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        "🧺 سبد خرید",
-                        callback_data="cart"
-                    )
-                ],
-                [
-                    InlineKeyboardButton(
-                        "🛒 ادامه خرید",
-                        callback_data="shop"
-                    )
-                ],
-            ])
+            f"🌿 {product['name']}\n\n"
+            f"📦 {product['size']}\n"
+            f"💰 قیمت واحد: {product['price']:,} تومان\n"
+            f"🔢 تعداد: {quantity}\n"
+            f"💵 مبلغ: {product['price'] * quantity:,} تومان",
+            reply_markup=product_keyboard(
+                product_id,
+                user_id
+            )
         )
 
         return
 
+
+    # -----------------------------------------------------
+    # کاهش تعداد
+    # -----------------------------------------------------
+
+    if data.startswith("dec_"):
+
+        product_id = data.replace(
+            "dec_",
+            ""
+        )
+
+        if product_id not in PRODUCTS:
+
+            return
+
+        if user_id not in carts:
+
+            return
+
+        if product_id not in carts[user_id]:
+
+            return
+
+        carts[user_id][product_id] -= 1
+
+        if carts[user_id][product_id] <= 0:
+
+            del carts[user_id][product_id]
+
+            if not carts[user_id]:
+                del carts[user_id]
+
+            await query.edit_message_text(
+                "🗑 محصول از سبد خرید حذف شد.",
+                reply_markup=main_menu()
+            )
+
+            return
+
+        product = PRODUCTS[product_id]
+
+        quantity = carts[user_id][product_id]
+
+        await query.edit_message_text(
+            f"🌿 {product['name']}\n\n"
+            f"📦 {product['size']}\n"
+            f"💰 قیمت واحد: {product['price']:,} تومان\n"
+            f"🔢 تعداد: {quantity}\n"
+            f"💵 مبلغ: {product['price'] * quantity:,} تومان",
+            reply_markup=product_keyboard(
+                product_id,
+                user_id
+            )
+        )
+
+        return
+
+
+    # -----------------------------------------------------
+    # سبد
+    # -----------------------------------------------------
 
     if data == "cart":
 
@@ -554,6 +800,10 @@ async def buttons(update, context):
 
         return
 
+
+    # -----------------------------------------------------
+    # ثبت سفارش
+    # -----------------------------------------------------
 
     if data == "order":
 
@@ -566,13 +816,7 @@ async def buttons(update, context):
 
             return
 
-        context.user_data[
-            "order_items"
-        ] = list(carts[user_id])
-
-        context.user_data[
-            "order_step"
-        ] = "name"
+        context.user_data["order_step"] = "name"
 
         await query.message.reply_text(
             "📦 ثبت سفارش\n\n"
@@ -582,11 +826,13 @@ async def buttons(update, context):
         return
 
 
+    # -----------------------------------------------------
+    # محل تحویل هیأت امنا
+    # -----------------------------------------------------
+
     if data == "delivery_heyat":
 
-        context.user_data[
-            "delivery"
-        ] = "هیأت امنا"
+        context.user_data["delivery"] = "هیأت امنا"
 
         await show_order_summary(
             query,
@@ -595,12 +841,14 @@ async def buttons(update, context):
 
         return
 
+
+    # -----------------------------------------------------
+    # محل تحویل مسجد
+    # -----------------------------------------------------
 
     if data == "delivery_mola":
 
-        context.user_data[
-            "delivery"
-        ] = "مسجد مولای متقیان"
+        context.user_data["delivery"] = "مسجد مولای متقیان"
 
         await show_order_summary(
             query,
@@ -609,6 +857,10 @@ async def buttons(update, context):
 
         return
 
+
+    # -----------------------------------------------------
+    # تأیید سفارش
+    # -----------------------------------------------------
 
     if data == "confirm_order":
 
@@ -620,7 +872,16 @@ async def buttons(update, context):
         return
 
 
+    # -----------------------------------------------------
+    # لغو سفارش
+    # -----------------------------------------------------
+
     if data == "cancel_order":
+
+        carts.pop(
+            user_id,
+            None
+        )
 
         context.user_data.clear()
 
@@ -632,70 +893,9 @@ async def buttons(update, context):
         return
 
 
-# =========================
-# خلاصه سفارش
-# =========================
-
-async def show_order_summary(query, context):
-
-    name = context.user_data.get(
-        "name",
-        ""
-    )
-
-    phone = context.user_data.get(
-        "phone",
-        ""
-    )
-
-    delivery = context.user_data.get(
-        "delivery",
-        ""
-    )
-
-    items = context.user_data.get(
-        "order_items",
-        []
-    )
-
-    total = 0
-
-    lines = []
-
-    for product_id in items:
-
-        product = PRODUCTS[product_id]
-
-        total += product["price"]
-
-        lines.append(
-            f"• {product['name']} "
-            f"({product['size']}) — "
-            f"{product['price']:,} تومان"
-        )
-
-    text = (
-        "📋 بررسی نهایی سفارش\n\n"
-        f"👤 نام: {name}\n"
-        f"📱 تلفن: {phone}\n"
-        f"📍 محل تحویل: {delivery}\n"
-        "🚚 هزینه تحویل: رایگان\n\n"
-        "🛍 محصولات:\n"
-        + "\n".join(lines)
-        + f"\n\n💰 مبلغ کل: {total:,} تومان\n\n"
-        "اگر اطلاعات صحیح است، "
-        "«تأیید و ثبت سفارش» را بزنید."
-    )
-
-    await query.edit_message_text(
-        text,
-        reply_markup=final_order_keyboard()
-    )
-
-
-# =========================
+# =========================================================
 # ثبت نهایی سفارش
-# =========================
+# =========================================================
 
 async def confirm_order(query, context):
 
@@ -718,24 +918,36 @@ async def confirm_order(query, context):
         ""
     )
 
-    items = context.user_data.get(
-        "order_items",
-        []
+    items = carts.get(
+        user_id,
+        {}
     )
 
-    total = 0
+    if not items:
+
+        await query.edit_message_text(
+            "❌ سبد خرید خالی است.",
+            reply_markup=main_menu()
+        )
+
+        return
+
+    total = calculate_cart(
+        user_id
+    )
 
     lines = []
 
-    for product_id in items:
+    for product_id, quantity in items.items():
 
         product = PRODUCTS[product_id]
 
-        total += product["price"]
+        subtotal = product["price"] * quantity
 
         lines.append(
-            f"• {product['name']} "
-            f"({product['size']})"
+            f"• {product['name']}\n"
+            f"  {product['size']} × {quantity}\n"
+            f"  مبلغ: {subtotal:,} تومان"
         )
 
     order_number = ORDER_NUMBER
@@ -743,9 +955,9 @@ async def confirm_order(query, context):
     ORDER_NUMBER += 1
 
 
-    # =====================
+    # -----------------------------------------------------
     # پیام مشتری
-    # =====================
+    # -----------------------------------------------------
 
     customer_text = (
         "🎉 سفارش شما با موفقیت ثبت شد!\n\n"
@@ -754,7 +966,9 @@ async def confirm_order(query, context):
         f"📱 تلفن: {phone}\n"
         f"📍 محل تحویل: {delivery}\n"
         "🚚 هزینه تحویل: رایگان\n\n"
-        f"💰 مبلغ کل: {total:,} تومان\n\n"
+        "🛍 محصولات:\n"
+        + "\n".join(lines)
+        + f"\n\n💰 مبلغ کل: {total:,} تومان\n\n"
         "از خرید شما از سبزی‌یو سپاسگزاریم 🌿"
     )
 
@@ -764,16 +978,17 @@ async def confirm_order(query, context):
     )
 
 
-    # =====================
+    # -----------------------------------------------------
     # پیام مدیر
-    # =====================
+    # -----------------------------------------------------
 
     admin_text = (
         "🆕 سفارش جدید سبزی‌یو\n\n"
         f"🔢 شماره سفارش: #{order_number}\n\n"
         f"👤 مشتری: {name}\n"
         f"📱 تلفن: {phone}\n"
-        f"📍 محل تحویل: {delivery}\n\n"
+        f"📍 محل تحویل: {delivery}\n"
+        "🚚 هزینه تحویل: رایگان\n\n"
         "🛍 محصولات:\n"
         + "\n".join(lines)
         + f"\n\n💰 مبلغ کل: {total:,} تومان\n"
@@ -798,9 +1013,9 @@ async def confirm_order(query, context):
             )
 
 
-    # =====================
+    # -----------------------------------------------------
     # پاک کردن سبد
-    # =====================
+    # -----------------------------------------------------
 
     carts.pop(
         user_id,
@@ -810,9 +1025,9 @@ async def confirm_order(query, context):
     context.user_data.clear()
 
 
-# =========================
+# =========================================================
 # پیام متنی
-# =========================
+# =========================================================
 
 async def text_message(update, context):
 
@@ -823,15 +1038,15 @@ async def text_message(update, context):
     )
 
 
+    # -----------------------------------------------------
+    # نام
+    # -----------------------------------------------------
+
     if step == "name":
 
-        context.user_data[
-            "name"
-        ] = text
+        context.user_data["name"] = text
 
-        context.user_data[
-            "order_step"
-        ] = "phone"
+        context.user_data["order_step"] = "phone"
 
         keyboard = [
             [
@@ -855,15 +1070,15 @@ async def text_message(update, context):
         return
 
 
+    # -----------------------------------------------------
+    # شماره تلفن به صورت دستی
+    # -----------------------------------------------------
+
     if step == "phone":
 
-        context.user_data[
-            "phone"
-        ] = text
+        context.user_data["phone"] = text
 
-        context.user_data[
-            "order_step"
-        ] = "delivery"
+        context.user_data["order_step"] = "delivery"
 
         await update.message.reply_text(
             "📍 محل تحویل سفارش را انتخاب کنید:",
@@ -884,9 +1099,9 @@ async def text_message(update, context):
     )
 
 
-# =========================
+# =========================================================
 # دریافت شماره تلفن
-# =========================
+# =========================================================
 
 async def contact_message(update, context):
 
@@ -905,13 +1120,9 @@ async def contact_message(update, context):
 
     phone = update.message.contact.phone_number
 
-    context.user_data[
-        "phone"
-    ] = phone
+    context.user_data["phone"] = phone
 
-    context.user_data[
-        "order_step"
-    ] = "delivery"
+    context.user_data["order_step"] = "delivery"
 
     await update.message.reply_text(
         "✅ شماره تلفن دریافت شد.\n\n"
@@ -925,11 +1136,18 @@ async def contact_message(update, context):
     )
 
 
-# =========================
+# =========================================================
 # /cancel
-# =========================
+# =========================================================
 
 async def cancel(update, context):
+
+    user_id = update.effective_user.id
+
+    carts.pop(
+        user_id,
+        None
+    )
 
     context.user_data.clear()
 
@@ -939,9 +1157,9 @@ async def cancel(update, context):
     )
 
 
-# =========================
+# =========================================================
 # /myid
-# =========================
+# =========================================================
 
 async def myid(update, context):
 
@@ -951,9 +1169,9 @@ async def myid(update, context):
     )
 
 
-# =========================
+# =========================================================
 # اجرای ربات
-# =========================
+# =========================================================
 
 def main():
 
@@ -1024,10 +1242,9 @@ def main():
     app.run_polling()
 
 
-# =========================
-# شروع
-# =========================
+# =========================================================
+# شروع برنامه
+# =========================================================
 
 if __name__ == "__main__":
-
     main()
