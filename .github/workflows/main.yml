@@ -21,8 +21,8 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run bot
-       env:
-         TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-         ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
-       run: |
-          python bot.py
+  env:
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        ADMIN_CHAT_ID: ${{ secrets.ADMIN_CHAT_ID }}
+  run: |
+    python bot.py
