@@ -53,4 +53,4 @@ jobs:
 
       - name: Run Bale bot
         run: |
-          python bale_bot.py
+         python -u bale_bot.py
