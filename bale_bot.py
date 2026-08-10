@@ -1,49 +1,624 @@
-@bot.event
-async def on_callback(callback: CallbackQuery):
+import os
+import logging
+import bale
 
-    user_id = str(callback.from_user.user_id)
-    data = callback.data
+from bale import (
+    Bot,
+    Message,
+    CallbackQuery,
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
+    MenuKeyboardMarkup,
+    MenuKeyboardButton,
+)
 
-    # =====================================================
-    # مشتری ذخیره‌شده
-    # =====================================================
+# =====================================================
+# تنظیمات
+# =====================================================
 
-    if data == "use_saved_customer":
+TOKEN = os.getenv("BALE_BOT_TOKEN")
+ADMIN_CHAT_ID = os.getenv("BALE_ADMIN_CHAT_ID")
 
-        customer = customers.get(user_id)
+if not TOKEN:
+    raise RuntimeError("BALE_BOT_TOKEN تنظیم نشده است.")
 
-        if not customer:
-            await callback.message.reply(
-                "❌ اطلاعات قبلی پیدا نشد.",
-                components=main_menu(),
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+)
+
+bot = Bot(token=TOKEN)
+
+# =====================================================
+# شماره سفارش
+# =====================================================
+
+ORDER_NUMBER = 1000
+
+# =====================================================
+# محصولات
+# =====================================================
+
+PRODUCTS = {
+    "fried_1": {
+        "name": "سبزی قورمه سرخ‌شده",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_2": {
+        "name": "سبزی کرفس (مخلوط)",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_3": {
+        "name": "سبزی کرفس (بدون ساقه)",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_4": {
+        "name": "ساقه کرفس (بدون سبزی)",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_5": {
+        "name": "اسفناج سرخ‌شده",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_6": {
+        "name": "قلیه ماهی",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_7": {
+        "name": "لوبیا سرخ‌شده",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "fried",
+    },
+    "fried_8": {
+        "name": "بادمجان سرخ‌شده",
+        "size": "۱ کیلو",
+        "price": 190000,
+        "category": "fried",
+    },
+    "fried_9": {
+        "name": "بادمجان کبابی",
+        "size": "۱ کیلو",
+        "price": 190000,
+        "category": "fried",
+    },
+
+    "raw_1": {
+        "name": "سبزی آش",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "raw",
+    },
+    "raw_2": {
+        "name": "کوکو سبزی",
+        "size": "۵۰۰ گرم",
+        "price": 280000,
+        "category": "raw",
+    },
+
+    "pickle_1": {
+        "name": "ترشی نازخاتون",
+        "size": "۵۰۰ گرم",
+        "price": 300000,
+        "category": "pickles",
+    },
+    "pickle_2": {
+        "name": "ترشی بندری",
+        "size": "۵۰۰ گرم",
+        "price": 250000,
+        "category": "pickles",
+    },
+
+    "syrup_1": {
+        "name": "شربت انبه زعفران",
+        "size": "۱ لیتر",
+        "price": 550000,
+        "category": "syrup",
+    },
+    "syrup_2": {
+        "name": "شربت انبه زعفران",
+        "size": "۱.۵ لیتر",
+        "price": 750000,
+        "category": "syrup",
+    },
+    "syrup_3": {
+        "name": "شربت آلبالو",
+        "size": "۱ لیتر",
+        "price": 350000,
+        "category": "syrup",
+    },
+    "syrup_4": {
+        "name": "شربت آلبالو",
+        "size": "۱.۵ لیتر",
+        "price": 450000,
+        "category": "syrup",
+    },
+    "syrup_5": {
+        "name": "شربت هل و زعفران",
+        "size": "۱ لیتر",
+        "price": 400000,
+        "category": "syrup",
+    },
+    "syrup_6": {
+        "name": "شربت هل و زعفران",
+        "size": "۱.۵ لیتر",
+        "price": 500000,
+        "category": "syrup",
+    },
+}
+
+# =====================================================
+# حافظه
+# =====================================================
+
+customers = {}
+carts = {}
+user_states = {}
+
+# =====================================================
+# منوی اصلی
+# =====================================================
+
+def main_menu():
+
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🛒 فروشگاه سبزی‌یو",
+            callback_data="shop",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🧺 سبد خرید",
+            callback_data="cart",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# دسته‌بندی‌ها
+# =====================================================
+
+def categories_keyboard():
+
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🌿 سبزی‌های سرخ‌شده",
+            callback_data="category_fried",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🥬 سبزی‌های خام",
+            callback_data="category_raw",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🥒 ترشیجات",
+            callback_data="category_pickles",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🥭 شربت‌ها و مربا",
+            callback_data="category_syrup",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🧺 سبد خرید",
+            callback_data="cart",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🏠 منوی اصلی",
+            callback_data="home",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# محصولات دسته
+# =====================================================
+
+def category_keyboard(category):
+
+    keyboard = InlineKeyboardMarkup()
+
+    for product_id, product in PRODUCTS.items():
+
+        if product["category"] == category:
+
+            keyboard.add(
+                InlineKeyboardButton(
+                    text=f"{product['name']} | {product['size']}",
+                    callback_data=f"product_{product_id}",
+                )
             )
-            return
 
-        await callback.message.reply(
-            f"👤 {customer.get('name', '')}\n"
-            f"📱 {customer.get('phone', 'ثبت نشده')}\n\n"
-            "اطلاعات شما آماده است.\n"
-            "حالا محصول موردنظر را انتخاب کنید:",
+    keyboard.add(
+        InlineKeyboardButton(
+            text="⬅️ بازگشت",
+            callback_data="shop",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# صفحه محصول
+# =====================================================
+
+def product_keyboard(product_id):
+
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="➕ افزودن به سبد خرید",
+            callback_data=f"add_{product_id}",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🧺 مشاهده سبد خرید",
+            callback_data="cart",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="⬅️ بازگشت به فروشگاه",
+            callback_data="shop",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# سبد خرید
+# =====================================================
+
+def cart_keyboard(user_id):
+
+    keyboard = InlineKeyboardMarkup()
+
+    cart = carts.get(user_id, {})
+
+    for product_id, quantity in cart.items():
+
+        product = PRODUCTS[product_id]
+
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"➖ {product['name']} ({quantity})",
+                callback_data=f"minus_{product_id}",
+            )
+        )
+
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"➕ {product['name']} ({quantity})",
+                callback_data=f"plus_{product_id}",
+            )
+        )
+
+    if cart:
+
+        keyboard.add(
+            InlineKeyboardButton(
+                text="📦 ثبت سفارش",
+                callback_data="order",
+            )
+        )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🛒 ادامه خرید",
+            callback_data="shop",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🏠 منوی اصلی",
+            callback_data="home",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# محل تحویل
+# =====================================================
+
+def delivery_keyboard():
+
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🏢 هیأت امنا — رایگان",
+            callback_data="delivery_heyat",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🕌 مسجد مولای متقیان — رایگان",
+            callback_data="delivery_mola",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# تأیید سفارش
+# =====================================================
+
+def final_order_keyboard():
+
+    keyboard = InlineKeyboardMarkup()
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="✅ تأیید و ثبت سفارش",
+            callback_data="confirm_order",
+        )
+    )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="❌ لغو سفارش",
+            callback_data="cancel_order",
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# شماره تلفن
+# =====================================================
+
+def phone_keyboard():
+
+    keyboard = MenuKeyboardMarkup()
+
+    keyboard.add(
+        MenuKeyboardButton(
+            "📱 ارسال شماره تلفن",
+            request_contact=True,
+        )
+    )
+
+    return keyboard
+
+
+# =====================================================
+# نمایش سبد
+# =====================================================
+
+async def show_cart(message, user_id):
+
+    cart = carts.get(user_id, {})
+
+    if not cart:
+
+        await message.reply(
+            "🧺 سبد خرید شما خالی است.\n\n"
+            "برای شروع خرید، یکی از دسته‌بندی‌ها را انتخاب کنید.",
             components=categories_keyboard(),
         )
         return
 
-    # =====================================================
-    # ثبت مشخصات جدید
-    # =====================================================
+    total = 0
+    lines = ["🧺 سبد خرید شما:\n"]
 
-    if data == "new_customer":
+    for product_id, quantity in cart.items():
 
-        user_states[user_id] = "name"
+        product = PRODUCTS[product_id]
 
-        await callback.message.reply(
-            "👤 لطفاً نام و نام خانوادگی خود را وارد کنید:"
+        subtotal = product["price"] * quantity
+        total += subtotal
+
+        lines.append(
+            f"• {product['name']}\n"
+            f"  {product['size']} × {quantity}\n"
+            f"  {subtotal:,} تومان\n"
         )
+
+    lines.append(
+        f"\n💰 جمع کل: {total:,} تومان"
+    )
+
+    await message.reply(
+        "\n".join(lines),
+        components=cart_keyboard(user_id),
+    )
+
+
+# =====================================================
+# نمایش خلاصه سفارش
+# =====================================================
+
+async def show_order_summary(message, user_id):
+
+    customer = customers.get(user_id, {})
+    cart = carts.get(user_id, {})
+
+    total = 0
+    lines = []
+
+    for product_id, quantity in cart.items():
+
+        product = PRODUCTS[product_id]
+
+        subtotal = product["price"] * quantity
+        total += subtotal
+
+        lines.append(
+            f"• {product['name']}\n"
+            f"  {product['size']} × {quantity}\n"
+            f"  {subtotal:,} تومان"
+        )
+
+    text = (
+        "📋 بررسی نهایی سفارش\n\n"
+        f"👤 نام: {customer.get('name', '')}\n"
+        f"📱 تلفن: {customer.get('phone', '')}\n"
+        f"📍 محل تحویل: {customer.get('delivery', '')}\n"
+        "🚚 هزینه تحویل: رایگان\n\n"
+        "🛍 محصولات:\n"
+        + "\n".join(lines)
+        + f"\n\n💰 مبلغ کل: {total:,} تومان\n\n"
+        "اگر اطلاعات صحیح است، "
+        "«تأیید و ثبت سفارش» را بزنید."
+    )
+
+    await message.reply(
+        text,
+        components=final_order_keyboard(),
+    )
+
+
+# =====================================================
+# پیام‌ها
+# =====================================================
+
+@bot.event
+async def on_message(message: Message):
+
+    if not message.content:
         return
 
-    # =====================================================
+    text = message.content.strip()
+
+    user_id = str(message.author.user_id)
+
+    # /start
+    if text == "/start":
+
+        user_states[user_id] = None
+
+        await message.reply(
+            "سلام 👋\n\n"
+            "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
+            "از منوی زیر انتخاب کنید:",
+            components=main_menu(),
+        )
+
+        return
+
+    # لغو
+    if text == "/cancel":
+
+        user_states[user_id] = None
+
+        await message.reply(
+            "❌ عملیات لغو شد.",
+            components=main_menu(),
+        )
+
+        return
+
+    # دریافت نام
+    if user_states.get(user_id) == "name":
+
+        customers.setdefault(user_id, {})
+
+        customers[user_id]["name"] = text
+
+        user_states[user_id] = "phone"
+
+        await message.reply(
+            "📱 لطفاً شماره تلفن خود را با دکمه زیر ارسال کنید:",
+            components=phone_keyboard(),
+        )
+
+        return
+
+    # دریافت شماره تلفن
+    if message.contact:
+
+        if user_states.get(user_id) != "phone":
+            return
+
+        customers.setdefault(user_id, {})
+
+        customers[user_id]["phone"] = (
+            message.contact.phone_number
+        )
+
+        user_states[user_id] = None
+
+        await message.reply(
+            "✅ شماره تلفن دریافت شد.\n\n"
+            "حالا فروشگاه را باز کنید:",
+            components=main_menu(),
+        )
+
+        return
+
+    # سلام
+    if text in ["سلام", "سلام 👋"]:
+
+        await message.reply(
+            "سلام 👋\n\n"
+            "به فروشگاه سبزی‌یو خوش آمدید 🌿",
+            components=main_menu(),
+        )
+
+        return
+
+
+# =====================================================
+# Callback ها
+# =====================================================
+
+@bot.event
+async def on_callback(callback: CallbackQuery):
+
+    user_id = str(callback.from_user.user_id)
+
+    data = callback.data
+
+    # =================================================
     # خانه
-    # =====================================================
+    # =================================================
 
     if data == "home":
 
@@ -52,11 +627,12 @@ async def on_callback(callback: CallbackQuery):
             "به فروشگاه سبزی‌یو خوش آمدید.",
             components=main_menu(),
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # فروشگاه
-    # =====================================================
+    # =================================================
 
     if data == "shop":
 
@@ -65,15 +641,34 @@ async def on_callback(callback: CallbackQuery):
             "دسته‌بندی موردنظر را انتخاب کنید:",
             components=categories_keyboard(),
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # دسته‌بندی
-    # =====================================================
+    # =================================================
 
     if data.startswith("category_"):
 
-        category = data.replace("category_", "", 1)
+        category = data.replace(
+            "category_",
+            "",
+            1,
+        )
+
+        if category not in [
+            "fried",
+            "raw",
+            "pickles",
+            "syrup",
+        ]:
+
+            await callback.message.reply(
+                "❌ دسته‌بندی نامعتبر است.",
+                components=categories_keyboard(),
+            )
+
+            return
 
         names = {
             "fried": "🌿 سبزی‌های سرخ‌شده",
@@ -82,28 +677,25 @@ async def on_callback(callback: CallbackQuery):
             "syrup": "🥭 شربت‌ها و مربا",
         }
 
-        if category not in names:
-
-            await callback.message.reply(
-                "❌ دسته‌بندی پیدا نشد.",
-                components=categories_keyboard(),
-            )
-            return
-
         await callback.message.reply(
             f"{names[category]}\n\n"
             "محصول موردنظر را انتخاب کنید:",
             components=category_keyboard(category),
         )
+
         return
 
-    # =====================================================
-    # انتخاب محصول
-    # =====================================================
+    # =================================================
+    # محصول
+    # =================================================
 
     if data.startswith("product_"):
 
-        product_id = data.replace("product_", "", 1)
+        product_id = data.replace(
+            "product_",
+            "",
+            1,
+        )
 
         product = PRODUCTS.get(product_id)
 
@@ -113,24 +705,31 @@ async def on_callback(callback: CallbackQuery):
                 "❌ محصول پیدا نشد.",
                 components=categories_keyboard(),
             )
+
             return
 
         await callback.message.reply(
             f"🌿 {product['name']}\n\n"
-            f"📦 وزن/حجم: {product['size']}\n"
-            f"💰 قیمت: {product['price']:,} تومان\n\n"
-            "برای افزودن محصول به سبد خرید، دکمه زیر را بزنید:",
+            f"📦 {product['size']}\n"
+            f"💰 {product['price']:,} تومان\n\n"
+            "برای افزودن محصول به سبد خرید، "
+            "دکمه زیر را بزنید:",
             components=product_keyboard(product_id),
         )
+
         return
 
-    # =====================================================
-    # افزودن محصول به سبد
-    # =====================================================
+    # =================================================
+    # افزودن به سبد
+    # =================================================
 
     if data.startswith("add_"):
 
-        product_id = data.replace("add_", "", 1)
+        product_id = data.replace(
+            "add_",
+            "",
+            1,
+        )
 
         if product_id not in PRODUCTS:
 
@@ -138,80 +737,97 @@ async def on_callback(callback: CallbackQuery):
                 "❌ محصول پیدا نشد.",
                 components=categories_keyboard(),
             )
+
             return
 
-        # ساخت سبد برای مشتری
-        if user_id not in carts:
-            carts[user_id] = {}
+        carts.setdefault(
+            user_id,
+            {},
+        )
 
-        # افزایش تعداد
-        old_quantity = carts[user_id].get(product_id, 0)
-
-        carts[user_id][product_id] = old_quantity + 1
+        carts[user_id][product_id] = (
+            carts[user_id].get(product_id, 0) + 1
+        )
 
         product = PRODUCTS[product_id]
 
         quantity = carts[user_id][product_id]
 
         await callback.message.reply(
-            "✅ محصول به سبد خرید اضافه شد!\n\n"
+            "✅ محصول با موفقیت به سبد خرید اضافه شد!\n\n"
             f"🌿 {product['name']}\n"
             f"📦 {product['size']}\n"
             f"🔢 تعداد: {quantity}\n"
             f"💰 قیمت واحد: {product['price']:,} تومان\n\n"
-            "از منوی زیر می‌توانید تعداد را تغییر دهید:",
+            "برای تغییر تعداد از دکمه‌های ➕ و ➖ استفاده کنید.",
             components=cart_keyboard(user_id),
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # افزایش تعداد
-    # =====================================================
+    # =================================================
 
     if data.startswith("plus_"):
 
-        product_id = data.replace("plus_", "", 1)
+        product_id = data.replace(
+            "plus_",
+            "",
+            1,
+        )
 
-        if product_id not in PRODUCTS:
-            return
+        if product_id in PRODUCTS:
 
-        if user_id not in carts:
-            carts[user_id] = {}
+            carts.setdefault(
+                user_id,
+                {},
+            )
 
-        current_quantity = carts[user_id].get(product_id, 0)
-
-        carts[user_id][product_id] = current_quantity + 1
+            carts[user_id][product_id] = (
+                carts[user_id].get(product_id, 0) + 1
+            )
 
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # کاهش تعداد
-    # =====================================================
+    # =================================================
 
     if data.startswith("minus_"):
 
-        product_id = data.replace("minus_", "", 1)
+        product_id = data.replace(
+            "minus_",
+            "",
+            1,
+        )
 
-        if product_id in carts.get(user_id, {}):
+        if product_id in carts.get(
+            user_id,
+            {},
+        ):
 
             carts[user_id][product_id] -= 1
 
             if carts[user_id][product_id] <= 0:
+
                 del carts[user_id][product_id]
 
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # =====================================================
-    # سبد خرید
-    # =====================================================
+    # =================================================
+    # سبد
+    # =================================================
 
     if data == "cart":
 
@@ -219,11 +835,12 @@ async def on_callback(callback: CallbackQuery):
             callback.message,
             user_id,
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # ثبت سفارش
-    # =====================================================
+    # =================================================
 
     if data == "order":
 
@@ -233,9 +850,9 @@ async def on_callback(callback: CallbackQuery):
                 "🧺 سبد خرید شما خالی است.",
                 components=categories_keyboard(),
             )
+
             return
 
-        # اگر مشتری قبلاً مشخصات دارد
         if (
             user_id in customers
             and customers[user_id].get("name")
@@ -244,7 +861,8 @@ async def on_callback(callback: CallbackQuery):
             user_states[user_id] = "delivery"
 
             await callback.message.reply(
-                f"👤 مشتری: {customers[user_id]['name']}\n\n"
+                f"👤 مشتری: "
+                f"{customers[user_id]['name']}\n\n"
                 "📍 محل تحویل سفارش را انتخاب کنید:",
                 components=delivery_keyboard(),
             )
@@ -260,9 +878,9 @@ async def on_callback(callback: CallbackQuery):
 
         return
 
-    # =====================================================
-    # تحویل — هیأت امنا
-    # =====================================================
+    # =================================================
+    # تحویل
+    # =================================================
 
     if data == "delivery_heyat":
 
@@ -277,11 +895,8 @@ async def on_callback(callback: CallbackQuery):
             callback.message,
             user_id,
         )
-        return
 
-    # =====================================================
-    # تحویل — مسجد مولای متقیان
-    # =====================================================
+        return
 
     if data == "delivery_mola":
 
@@ -290,17 +905,20 @@ async def on_callback(callback: CallbackQuery):
             {},
         )
 
-        customers[user_id]["delivery"] = "مسجد مولای متقیان"
+        customers[user_id]["delivery"] = (
+            "مسجد مولای متقیان"
+        )
 
         await show_order_summary(
             callback.message,
             user_id,
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # تأیید سفارش
-    # =====================================================
+    # =================================================
 
     if data == "confirm_order":
 
@@ -308,11 +926,12 @@ async def on_callback(callback: CallbackQuery):
             callback.message,
             user_id,
         )
+
         return
 
-    # =====================================================
+    # =================================================
     # لغو سفارش
-    # =====================================================
+    # =================================================
 
     if data == "cancel_order":
 
@@ -327,12 +946,137 @@ async def on_callback(callback: CallbackQuery):
             "❌ سفارش لغو شد.",
             components=main_menu(),
         )
+
         return
 
-    # =====================================================
-    # Callback ناشناخته
-    # =====================================================
-
     logging.warning(
-        f"Unknown callback received: {data}"
+        f"Callback ناشناخته: {data}"
     )
+
+
+# =====================================================
+# ثبت نهایی سفارش
+# =====================================================
+
+async def confirm_order(message, user_id):
+
+    global ORDER_NUMBER
+
+    customer = customers.get(
+        user_id,
+        {},
+    )
+
+    cart = carts.get(
+        user_id,
+        {},
+    )
+
+    if not cart:
+
+        await message.reply(
+            "🧺 سبد خرید شما خالی است.",
+            components=main_menu(),
+        )
+
+        return
+
+    total = 0
+    lines = []
+
+    for product_id, quantity in cart.items():
+
+        product = PRODUCTS[product_id]
+
+        subtotal = (
+            product["price"] * quantity
+        )
+
+        total += subtotal
+
+        lines.append(
+            f"• {product['name']} "
+            f"({product['size']}) × {quantity} "
+            f"— {subtotal:,} تومان"
+        )
+
+    order_number = ORDER_NUMBER
+
+    ORDER_NUMBER += 1
+
+    # پیام مشتری
+    customer_text = (
+        "🎉 سفارش شما با موفقیت ثبت شد!\n\n"
+        f"🔢 شماره سفارش: #{order_number}\n"
+        f"👤 نام: {customer.get('name', '')}\n"
+        f"📱 تلفن: {customer.get('phone', '')}\n"
+        f"📍 محل تحویل: "
+        f"{customer.get('delivery', '')}\n"
+        "🚚 هزینه تحویل: رایگان\n\n"
+        "🛍 محصولات:\n"
+        + "\n".join(lines)
+        + f"\n\n💰 مبلغ کل: {total:,} تومان\n\n"
+        "از خرید شما از سبزی‌یو سپاسگزاریم 🌿"
+    )
+
+    await message.reply(
+        customer_text,
+        components=main_menu(),
+    )
+
+    # پیام مدیر
+    if ADMIN_CHAT_ID:
+
+        admin_text = (
+            "🆕 سفارش جدید سبزی‌یو\n\n"
+            f"🔢 شماره سفارش: #{order_number}\n\n"
+            f"👤 مشتری: "
+            f"{customer.get('name', '')}\n"
+            f"📱 تلفن: "
+            f"{customer.get('phone', '')}\n"
+            f"📍 محل تحویل: "
+            f"{customer.get('delivery', '')}\n\n"
+            "🛍 محصولات:\n"
+            + "\n".join(lines)
+            + f"\n\n💰 مبلغ کل: {total:,} تومان\n"
+            "🚚 هزینه تحویل: رایگان\n\n"
+            f"🆔 شناسه بله مشتری: {user_id}"
+        )
+
+        try:
+
+            await bot.send_message(
+                chat_id=int(ADMIN_CHAT_ID),
+                text=admin_text,
+            )
+
+        except Exception as e:
+
+            logging.error(
+                f"خطا در ارسال سفارش به مدیر: {e}"
+            )
+
+    carts.pop(
+        user_id,
+        None,
+    )
+
+    user_states[user_id] = None
+
+
+# =====================================================
+# آماده شدن ربات
+# =====================================================
+
+@bot.event
+async def on_ready():
+
+    print("=== BALE BOT CONNECTED ===")
+    print("SabziU Bale Store is ready!")
+
+
+# =====================================================
+# اجرای ربات
+# =====================================================
+
+bot.run()
