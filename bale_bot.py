@@ -343,31 +343,26 @@ def cart_keyboard(user_id):
 
     for product_id, quantity in cart.items():
 
-        product = PRODUCTS.get(product_id)
+        product_name = PRODUCTS[product_id]["name"]
 
-        if not product:
-            continue
-
-        # دکمه کاهش
+        # دکمه اضافه کردن سفارش
         keyboard.add(
             InlineKeyboardButton(
-                text=f"➖ {product['name']}",
-                callback_data=f"minus_{product_id}",
-            ),
-            row=row,
-        )
-
-        row += 1
-
-        # دکمه افزایش
-        keyboard.add(
-            InlineKeyboardButton(
-                text=f"➕ {product['name']}",
+                text=f"➕ اضافه کردن سفارش | {product_name}",
                 callback_data=f"plus_{product_id}",
             ),
             row=row,
         )
+        row += 1
 
+        # دکمه کم کردن سفارش
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"➖ کم کردن سفارش | {product_name}",
+                callback_data=f"minus_{product_id}",
+            ),
+            row=row,
+        )
         row += 1
 
     if cart:
@@ -379,7 +374,6 @@ def cart_keyboard(user_id):
             ),
             row=row,
         )
-
         row += 1
 
     keyboard.add(
@@ -389,7 +383,6 @@ def cart_keyboard(user_id):
         ),
         row=row,
     )
-
     row += 1
 
     keyboard.add(
@@ -401,7 +394,6 @@ def cart_keyboard(user_id):
     )
 
     return keyboard
-
 
 # =========================================================
 # محل تحویل
