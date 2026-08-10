@@ -207,55 +207,75 @@ def main_menu():
 # دسته‌بندی‌ها
 # =========================================================
 
-def categories_keyboard():
+def cart_keyboard(user_id):
     keyboard = InlineKeyboardMarkup()
 
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🌿 سبزی‌های سرخ‌شده",
-            callback_data="category_fried",
-        ),
-        row=1,
-    )
+    cart = carts.get(user_id, {})
+
+    row = 1
+
+    for product_id, quantity in cart.items():
+
+        product = PRODUCTS[product_id]
+
+        # نام محصول
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"🌿 {product['name']}",
+                callback_data=f"product_{product_id}",
+            ),
+            row=row,
+        )
+
+        row += 1
+
+        # کنترل تعداد
+        keyboard.add(
+            InlineKeyboardButton(
+                text="➖",
+                callback_data=f"minus_{product_id}",
+            ),
+            InlineKeyboardButton(
+                text=f"  {quantity}  ",
+                callback_data="quantity_info",
+            ),
+            InlineKeyboardButton(
+                text="➕",
+                callback_data=f"plus_{product_id}",
+            ),
+            row=row,
+        )
+
+        row += 1
+
+    if cart:
+
+        keyboard.add(
+            InlineKeyboardButton(
+                text="📦 ثبت سفارش",
+                callback_data="order",
+            ),
+            row=row,
+        )
+
+        row += 1
 
     keyboard.add(
         InlineKeyboardButton(
-            text="🥬 سبزی‌های خام",
-            callback_data="category_raw",
+            text="🛒 ادامه خرید",
+            callback_data="shop",
         ),
-        row=2,
+        row=row,
     )
 
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🥒 ترشیجات",
-            callback_data="category_pickles",
-        ),
-        row=3,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🥭 شربت‌ها و مربا",
-            callback_data="category_syrup",
-        ),
-        row=4,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🧺 سبد خرید",
-            callback_data="cart",
-        ),
-        row=5,
-    )
+    row += 1
 
     keyboard.add(
         InlineKeyboardButton(
             text="🏠 منوی اصلی",
             callback_data="home",
         ),
-        row=6,
+        row=row,
     )
 
     return keyboard
