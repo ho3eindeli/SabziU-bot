@@ -345,20 +345,18 @@ def cart_keyboard(user_id):
 
         product_name = PRODUCTS[product_id]["name"]
 
-        # دکمه اضافه کردن سفارش
         keyboard.add(
             InlineKeyboardButton(
-                text=f"➕ اضافه کردن سفارش | {product_name}",
+                text=f"➕ اضافه کردن | {product_name}",
                 callback_data=f"plus_{product_id}",
             ),
             row=row,
         )
         row += 1
 
-        # دکمه کم کردن سفارش
         keyboard.add(
             InlineKeyboardButton(
-                text=f"➖ کم کردن سفارش | {product_name}",
+                text=f"➖ کم کردن | {product_name}",
                 callback_data=f"minus_{product_id}",
             ),
             row=row,
@@ -366,7 +364,6 @@ def cart_keyboard(user_id):
         row += 1
 
     if cart:
-
         keyboard.add(
             InlineKeyboardButton(
                 text="📦 ثبت سفارش",
@@ -585,11 +582,7 @@ async def on_message(message: Message):
 
     user_id = str(message.author.user_id)
 
-    # =====================================================
-    # مهم:
-    # شماره تلفن قبل از message.content بررسی می‌شود
-    # =====================================================
-
+    # دریافت شماره تلفن
     if message.contact:
 
         state = user_states.get(user_id)
@@ -599,27 +592,21 @@ async def on_message(message: Message):
 
         phone = message.contact.phone_number
 
-        customers.setdefault(
-            user_id,
-            {},
-        )
+        customers.setdefault(user_id, {})
 
         customers[user_id]["phone"] = phone
 
         user_states[user_id] = None
 
         await message.reply(
-            "✅ شماره تلفن شما با موفقیت دریافت شد.\n\n"
-            "حالا می‌توانید وارد فروشگاه سبزی‌یو شوید 🌿",
+            "✅ شماره تلفن شما با موفقیت ثبت شد.\n\n"
+            "حالا می‌توانید محصول موردنظر خود را انتخاب کنید:",
             components=main_menu(),
         )
 
         return
 
-    # =====================================================
-    # پیام بدون متن
-    # =====================================================
-
+    # پیام‌های متنی
     if not message.content:
         return
 
