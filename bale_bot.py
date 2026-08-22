@@ -690,9 +690,7 @@ async def on_message(message: Message):
         user_states[user_id] = None
 
         await message.reply(
-            "✅ شماره تلفن شما ثبت شد.
-
-"
+            "✅ شماره تلفن شما ثبت شد.\n\n"
             "حالا می‌توانید خرید خود را ادامه دهید:",
             components=main_menu(),
         )
