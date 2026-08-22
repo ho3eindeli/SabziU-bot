@@ -519,5 +519,6 @@ PRODUCTS = {
         "image": "",
         "active": True,
     },
+    
 
 }
