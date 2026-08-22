@@ -489,7 +489,6 @@ async def confirm_order(message, user_id):
 
     await message.reply(
         customer_text,
-        components=main_menu(),
     )
 
     # -----------------------------------------------------
