@@ -5,168 +5,193 @@
 PRODUCTS = {
 
     # =====================================================
-    # سبزی‌های سرخ‌شده
+    # 1. 🌿 سبزی‌های سرخ‌شده
     # =====================================================
 
     "fried_1": {
         "name": "بادمجان سرخ شده",
-        "size": "۱ کیلو",
-        "price": 370000,
         "category": "fried",
+        "size": "1 کیلوگرم",
+        "price": 370000,
         "image": "",
         "active": True,
     },
 
     "fried_2": {
         "name": "بادمجان کبابی",
-        "size": "۱ کیلو",
-        "price": 310000,
         "category": "fried",
+        "size": "1 کیلوگرم",
+        "price": 310000,
         "image": "",
         "active": True,
     },
 
     "fried_3": {
         "name": "بامیه سرخ شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
         "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "fried_4": {
         "name": "پیاز داغ",
-        "size": "۵۰۰ گرم",
-        "price": 400000,
         "category": "fried",
+        "size": "500 گرم",
+        "price": 400000,
         "image": "",
         "active": True,
     },
 
     "fried_5": {
         "name": "پیاز داغ ممتاز سبزی‌یو",
-        "size": "۵۰۰ گرم",
-        "price": 650000,
         "category": "fried",
+        "size": "500 گرم",
+        "price": 650000,
         "image": "",
         "active": True,
     },
 
     "fried_6": {
         "name": "خوراک لوبیا سرخ‌شده",
-        "size": "۵۰۰ گرم",
-        "price": 280000,
         "category": "fried",
+        "size": "500 گرم",
+        "price": 280000,
         "image": "",
         "active": True,
     },
 
     "fried_7": {
-        "name": "ساقه کرفس سرخ شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
+        "name": "لوبیا سرخ شده",
         "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "fried_8": {
-        "name": "سبزی کرفس سرخ‌شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
+        "name": "لوبیا گوجه سرخ شده",
         "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "fried_9": {
-        "name": "سبزی و ساقه کرفس سرخ‌شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
+        "name": "میرزا قاسمی نیمه‌آماده",
         "category": "fried",
+        "size": "500 گرم",
+        "price": 200000,
         "image": "",
         "active": True,
     },
 
     "fried_10": {
-        "name": "لوبیا سرخ شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
+        "name": "ساقه کرفس سرخ شده",
         "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "fried_11": {
-        "name": "لوبیا گوجه سرخ شده",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
+        "name": "سبزی کرفس سرخ‌شده",
         "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_12": {
+        "name": "سبزی و ساقه کرفس سرخ‌شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     # =====================================================
-    # سبزی‌های خام
+    # 2. 🥬 سبزی‌های خام و تازه
     # =====================================================
 
     "raw_1": {
         "name": "اسفناج",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
         "category": "raw",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "raw_2": {
         "name": "سبزی آش",
-        "size": "۵۰۰ گرم",
-        "price": 70000,
         "category": "raw",
+        "size": "500 گرم",
+        "price": 70000,
         "image": "",
         "active": True,
     },
 
     "raw_3": {
         "name": "سبزی قرمه",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
         "category": "raw",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "raw_4": {
         "name": "سبزی قلیه ماهی",
-        "size": "۵۰۰ گرم",
-        "price": 290000,
         "category": "raw",
+        "size": "500 گرم",
+        "price": 290000,
         "image": "",
         "active": True,
     },
 
     "raw_5": {
         "name": "سبزی کوکو و سبزی پلو",
-        "size": "۵۰۰ گرم",
-        "price": 70000,
         "category": "raw",
+        "size": "500 گرم",
+        "price": 70000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_6": {
+        "name": "ذرت تازه و آماده پخت",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 210000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_7": {
+        "name": "نخود پوست‌کنده آماده پخت",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 230000,
         "image": "",
         "active": True,
     },
 
     # =====================================================
-    # ترشیجات و شور
+    # 3. 🥒 ترشیجات
     # =====================================================
 
     "pickle_1": {
         "name": "ترشی آلبالو",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 350000},
-            {"size": "۱ کیلو", "price": 680000},
-        ],
+        "size": "500 گرم",
+        "price": 350000,
         "image": "",
         "active": True,
     },
@@ -174,10 +199,8 @@ PRODUCTS = {
     "pickle_2": {
         "name": "ترشی بادمجان شکم‌پر",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -185,10 +208,8 @@ PRODUCTS = {
     "pickle_3": {
         "name": "ترشی بندری / سالادی",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -196,10 +217,8 @@ PRODUCTS = {
     "pickle_4": {
         "name": "ترشی ساقه سبزی رژیمی",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -207,10 +226,8 @@ PRODUCTS = {
     "pickle_5": {
         "name": "ترشی لبو",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -218,10 +235,8 @@ PRODUCTS = {
     "pickle_6": {
         "name": "ترشی لیته بادمجان",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -229,10 +244,8 @@ PRODUCTS = {
     "pickle_7": {
         "name": "ترشی مخلوط درشت",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -240,10 +253,8 @@ PRODUCTS = {
     "pickle_8": {
         "name": "ترشی مخلوط ریز",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -251,10 +262,8 @@ PRODUCTS = {
     "pickle_9": {
         "name": "ترشی مکزیکی",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 400000},
-            {"size": "۱ کیلو", "price": 750000},
-        ],
+        "size": "500 گرم",
+        "price": 400000,
         "image": "",
         "active": True,
     },
@@ -262,10 +271,8 @@ PRODUCTS = {
     "pickle_10": {
         "name": "ترشی نازخاتون",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 450000},
-        ],
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
@@ -273,245 +280,204 @@ PRODUCTS = {
     "pickle_11": {
         "name": "شور",
         "category": "pickles",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 150000},
-            {"size": "۱ کیلو", "price": 270000},
-        ],
+        "size": "500 گرم",
+        "price": 150000,
         "image": "",
         "active": True,
     },
 
     # =====================================================
-    # رب و چاشنی
-    # =====================================================
-
-    "sauce_1": {
-        "name": "آبغوره",
-        "size": "۱ لیتر",
-        "price": 400000,
-        "category": "sauce",
-        "image": "",
-        "active": True,
-    },
-
-    "sauce_2": {
-        "name": "رب انار",
-        "category": "sauce",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 350000},
-            {"size": "۱ کیلو", "price": 700000},
-        ],
-        "image": "",
-        "active": True,
-    },
-
-    "sauce_3": {
-        "name": "رب گوجه فرنگی",
-        "category": "sauce",
-        "variants": [
-            {"size": "۵۰۰ گرم", "price": 250000},
-            {"size": "۱ کیلو", "price": 580000},
-        ],
-        "image": "",
-        "active": True,
-    },
-
-    "sauce_4": {
-        "name": "سرکه انگور",
-        "size": "۱ لیتر",
-        "price": 250000,
-        "category": "sauce",
-        "image": "",
-        "active": True,
-    },
-
-    "sauce_5": {
-        "name": "سرکه سیب",
-        "size": "۱ لیتر",
-        "price": 250000,
-        "category": "sauce",
-        "image": "",
-        "active": True,
-    },
-
-    # =====================================================
-    # شربت‌ها
+    # 4. 🥤 شربت‌ها
     # =====================================================
 
     "syrup_1": {
         "name": "شربت آلبالو",
-        "size": "۱ لیتر",
-        "price": 400000,
         "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
         "image": "",
         "active": True,
     },
 
     "syrup_2": {
         "name": "شربت انبه زعفران",
-        "size": "۱ لیتر",
-        "price": 400000,
         "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
         "image": "",
         "active": True,
     },
 
     "syrup_3": {
         "name": "شربت بالنگو",
-        "size": "۱ لیتر",
-        "price": 400000,
         "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
         "image": "",
         "active": True,
     },
 
     "syrup_4": {
         "name": "شربت سکنجبین",
-        "size": "۱ لیتر",
-        "price": 300000,
         "category": "syrup",
+        "size": "1 لیتر",
+        "price": 300000,
         "image": "",
         "active": True,
     },
 
     "syrup_5": {
         "name": "شربت هل زعفران",
-        "size": "۱ لیتر",
-        "price": 400000,
         "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
         "image": "",
         "active": True,
     },
 
     # =====================================================
-    # عرقیات و گلاب
-    # =====================================================
-
-    "herbal_1": {
-        "name": "عرق نعنا",
-        "size": "۱ لیتر",
-        "price": 220000,
-        "category": "herbal",
-        "image": "",
-        "active": True,
-    },
-
-    "herbal_2": {
-        "name": "گلاب",
-        "size": "۱ لیتر",
-        "price": 300000,
-        "category": "herbal",
-        "image": "",
-        "active": True,
-    },
-
-    # =====================================================
-    # ادویه و خشک‌شده
-    # =====================================================
-
-    "spice_1": {
-        "name": "زردچوبه",
-        "size": "۵۰۰ گرم",
-        "price": 300000,
-        "category": "spices",
-        "image": "",
-        "active": True,
-    },
-
-    "spice_2": {
-        "name": "فلفل سیاه",
-        "size": "۵۰۰ گرم",
-        "price": 250000,
-        "category": "spices",
-        "image": "",
-        "active": True,
-    },
-
-    "spice_3": {
-        "name": "نعنا خشک",
-        "size": "۵۰۰ گرم",
-        "price": 650000,
-        "category": "spices",
-        "image": "",
-        "active": True,
-    },
-
-    # =====================================================
-    # مربا
+    # 5. 🍓 مربا
     # =====================================================
 
     "jam_1": {
         "name": "مربای آلبالو",
-        "size": "۵۰۰ گرم",
-        "price": 350000,
         "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
         "image": "",
         "active": True,
     },
 
     "jam_2": {
         "name": "مربای بالنگ",
-        "size": "۵۰۰ گرم",
-        "price": 350000,
         "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
         "image": "",
         "active": True,
     },
 
     "jam_3": {
         "name": "مربای پرتقال",
-        "size": "۵۰۰ گرم",
-        "price": 280000,
         "category": "jam",
+        "size": "500 گرم",
+        "price": 280000,
         "image": "",
         "active": True,
     },
 
     "jam_4": {
         "name": "مربای توت‌فرنگی",
-        "size": "۵۰۰ گرم",
-        "price": 350000,
         "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
         "image": "",
         "active": True,
     },
 
     "jam_5": {
         "name": "مربای هویج",
-        "size": "۵۰۰ گرم",
-        "price": 250000,
         "category": "jam",
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
 
     # =====================================================
-    # آماده پخت و نیمه‌آماده
+    # 6. 🧂 ادویه و افزودنی
     # =====================================================
 
-    "ready_1": {
-        "name": "ذرت تازه و آماده پخت",
-        "size": "۱ کیلو",
-        "price": 210000,
-        "category": "ready",
+    "spice_1": {
+        "name": "زردچوبه",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 300000,
         "image": "",
         "active": True,
     },
 
-    "ready_2": {
-        "name": "نخود پوست‌کنده آماده پخت",
-        "size": "۵۰۰ گرم",
-        "price": 230000,
-        "category": "ready",
+    "spice_2": {
+        "name": "فلفل سیاه",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
 
-    "ready_3": {
-        "name": "میرزا قاسمی نیمه‌آماده",
-        "size": "۵۰۰ گرم",
-        "price": 200000,
-        "category": "ready",
+    "spice_3": {
+        "name": "نعنا خشک",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 650000,
+        "image": "",
+        "active": True,
+    },
+
+    # =====================================================
+    # 7. 🌹 عرقیات و چاشنی
+    # =====================================================
+
+    "drink_1": {
+        "name": "عرق نعنا",
+        "category": "drinks",
+        "size": "1 لیتر",
+        "price": 220000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_2": {
+        "name": "گلاب",
+        "category": "drinks",
+        "size": "1 لیتر",
+        "price": 300000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_3": {
+        "name": "سرکه انگور",
+        "category": "drinks",
+        "size": "1 لیتر",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_4": {
+        "name": "سرکه سیب",
+        "category": "drinks",
+        "size": "1 لیتر",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_5": {
+        "name": "آبغوره",
+        "category": "drinks",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_6": {
+        "name": "رب انار",
+        "category": "drinks",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "drink_7": {
+        "name": "رب گوجه فرنگی",
+        "category": "drinks",
+        "size": "500 گرم",
+        "price": 250000,
         "image": "",
         "active": True,
     },
