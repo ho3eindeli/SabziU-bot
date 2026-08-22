@@ -140,7 +140,7 @@ PRODUCTS = {
 
     "raw_3": {
         "name": "سبزی قرمه",
-        "category": "raw",
+        "category": "fried",
         "size": "500 گرم",
         "price": 290000,
         "image": "",
