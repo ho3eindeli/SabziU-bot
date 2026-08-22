@@ -17,7 +17,7 @@ from bale import (
 # =========================================================
 
 TOKEN = os.getenv("BALE_BOT_TOKEN")
-ADMIN_CHAT_ID = os.getenv("BALE_ADMIN_CHAT_ID")
+ADMIN_CHAT_IDS = [x.strip() for x in os.getenv("BALE_ADMIN_CHAT_IDS", "").split(",") if x.strip()]
 
 if not TOKEN:
     raise RuntimeError("BALE_BOT_TOKEN تنظیم نشده است.")
@@ -496,7 +496,7 @@ async def confirm_order(message, user_id):
     # پیام مدیر
     # -----------------------------------------------------
 
-    if ADMIN_CHAT_ID:
+    if ADMIN_CHAT_IDS:
 
         admin_text = (
             "🆕 سفارش جدید سبزی‌یو\n\n"
@@ -513,10 +513,11 @@ async def confirm_order(message, user_id):
 
         try:
 
-            await bot.send_message(
-                chat_id=int(ADMIN_CHAT_ID),
-                text=admin_text,
-            )
+            for admin_chat_id in ADMIN_CHAT_IDS:
+                await bot.send_message(
+                    chat_id=int(admin_chat_id),
+                    text=admin_text,
+                )
 
         except Exception as e:
 
@@ -537,6 +538,7 @@ async def confirm_order(message, user_id):
 async def on_message(message: Message):
 
     user_id = str(message.author.user_id)
+    print(f"USER_ID: {user_id}", flush=True)
 
     # -----------------------------------------------------
     # دریافت شماره تلفن
