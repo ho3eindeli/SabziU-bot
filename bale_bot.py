@@ -583,7 +583,7 @@ async def on_message(message: Message):
 
     text = message.content.strip()
 
-    # -----------------------------------------------------
+     # -----------------------------------------------------
     # /start
     # -----------------------------------------------------
 
@@ -591,71 +591,53 @@ async def on_message(message: Message):
 
         user_states[user_id] = None
 
-        if user_id in customers:
+        keyboard = InlineKeyboardMarkup()
 
-            customer = customers[user_id]
+        row = 1
 
-            keyboard = InlineKeyboardMarkup()
+        # مشتریان ثبت‌شده
+        for customer_id, customer in customers.items():
 
-            keyboard.add(
-                InlineKeyboardButton(
-                    text=f"👤 ادامه با نام «{customer.get('name', '')}»",
-                    callback_data="use_saved_customer",
-                ),
-                row=1,
-            )
+            name = customer.get("name", "بدون نام")
 
             keyboard.add(
                 InlineKeyboardButton(
-                    text="✏️ ثبت مشخصات جدید",
-                    callback_data="new_customer",
+                    text=f"👤 {name}",
+                    callback_data=f"profile_{customer_id}",
                 ),
-                row=2,
+                row=row,
             )
 
-            keyboard.add(
-                InlineKeyboardButton(
-                    text="🛒 ورود به فروشگاه",
-                    callback_data="shop",
-                ),
-                row=3,
-            )
+            row += 1
 
-            await message.reply(
-                "سلام 👋\n\n"
-                "خوش آمدید به سبزی‌یو 🌿\n\n"
-                f"نام ثبت‌شده شما:\n"
-                f"👤 {customer.get('name', '')}\n\n"
-                "برای سفارش جدید می‌توانید از اطلاعات قبلی استفاده کنید.",
-                components=keyboard,
-            )
+        # خرید برای شخص جدید
+        keyboard.add(
+            InlineKeyboardButton(
+                text="➕ خرید برای شخص جدید",
+                callback_data="new_customer",
+            ),
+            row=row,
+        )
 
-        else:
+        row += 1
 
-            await message.reply(
-                "سلام 👋\n\n"
-                "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
-                "از منوی زیر انتخاب کنید:",
-                components=main_menu(),
-            )
-
-        return
-
-    # -----------------------------------------------------
-    # لغو
-    # -----------------------------------------------------
-
-    if text == "/cancel":
-
-        user_states[user_id] = None
+        # ورود مستقیم به فروشگاه
+        keyboard.add(
+            InlineKeyboardButton(
+                text="🛒 ورود به فروشگاه",
+                callback_data="shop",
+            ),
+            row=row,
+        )
 
         await message.reply(
-            "❌ عملیات لغو شد.",
-            components=main_menu(),
+            "سلام 👋\n\n"
+            "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
+            "👥 مشتری موردنظر را انتخاب کنید:",
+            components=keyboard,
         )
 
         return
-
     # -----------------------------------------------------
     # دریافت نام
     # -----------------------------------------------------
