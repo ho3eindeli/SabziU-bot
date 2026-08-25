@@ -776,7 +776,8 @@ async def confirm_order(message, user_id):
     )
 
     await message.reply(
-        customer_text
+        customer_text,
+        components=main_menu(),
     )
 
     # -----------------------------------------------------
@@ -847,39 +848,39 @@ async def on_message(message: Message):
         flush=True,
     )
 
-    # -----------------------------------------------------
+        # -----------------------------------------------------
     # دریافت شماره تلفن
     # -----------------------------------------------------
 
     if message.contact:
 
-        customer_id = active_customer.get(
-            user_id
-        )
+        customer_id = active_customer.get(user_id)
 
         if not customer_id:
-
             customer_id = user_id
-
             active_customer[user_id] = customer_id
 
-        customers.setdefault(
-            customer_id,
-            {},
-        )
+        customers.setdefault(customer_id, {})
 
         customers[customer_id]["phone"] = (
             message.contact.phone_number
         )
 
-        # بسیار مهم:
-        # بعد از ثبت شماره، فقط به منوی اصلی می‌رویم.
-        # اینجا به هیچ عنوان آدرس یا محل تحویل درخواست نمی‌شود.
-
         user_states[user_id] = None
 
+        # حذف کیبورد ارسال شماره تلفن
+        try:
+            await message.reply(
+                "✅ شماره تلفن ثبت شد.",
+                components=MenuKeyboardMarkup(
+                    resize_keyboard=True,
+                    one_time_keyboard=True,
+                ),
+            )
+        except Exception:
+            pass
+
         await message.reply(
-            "✅ شماره تلفن ثبت شد.\n\n"
             "حالا وارد فروشگاه شوید و خرید خود را انجام دهید:",
             components=main_menu(),
         )
