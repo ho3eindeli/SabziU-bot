@@ -1279,6 +1279,25 @@ async def show_final_invoice(
 # ثبت مشخصات
 # =========================================================
 
+def phone_keyboard():
+
+    keyboard = MenuKeyboardMarkup()
+
+    keyboard.add(
+        MenuKeyboardButton(
+            "📱 ارسال شماره تلفن",
+            request_contact=True,
+        )
+    )
+
+    return keyboard
+
+
+async def start_new_customer(
+    message,
+    user_id,
+):
+
 async def start_new_customer(
     message,
     user_id,
