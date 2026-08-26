@@ -1,3 +1,4 @@
+```python
 import os
 import json
 import logging
@@ -72,6 +73,9 @@ def load_data():
         data.setdefault("customers", {})
         data.setdefault("orders", [])
         data.setdefault("next_order_number", 1000)
+
+        for customer in data["customers"].values():
+            customer.setdefault("addresses", [])
 
         return data
 
@@ -245,7 +249,6 @@ def previous_orders_keyboard(user_id):
             ),
             row=row,
         )
-
         row += 1
 
     keyboard.add(
@@ -363,7 +366,6 @@ def categories_keyboard():
             ),
             row=row,
         )
-
         row += 1
 
     keyboard.add(
@@ -403,7 +405,6 @@ def category_keyboard(category):
             ),
             row=row,
         )
-
         row += 1
 
     keyboard.add(
@@ -569,7 +570,6 @@ def customer_start_keyboard(user_id):
             ),
             row=3,
         )
-
     else:
         keyboard.add(
             InlineKeyboardButton(
@@ -704,7 +704,7 @@ async def show_customer_profile(message, customer_id):
 
 
 # =========================================================
-# دکمه شماره تلفن
+# شماره تلفن
 # =========================================================
 
 def phone_keyboard():
@@ -820,12 +820,15 @@ def address_management_keyboard(customer_id, index):
 
 
 # =========================================================
-# ثبت مشتری جدید
+# ثبت مشتری
 # =========================================================
 
 async def start_new_customer(message, user_id):
     customers = get_user_customers(user_id)
     number = len(customers) + 1
+
+    while f"{user_id}_customer_{number}" in DATA["customers"]:
+        number += 1
 
     customer_id = f"{user_id}_customer_{number}"
 
@@ -851,6 +854,10 @@ async def start_new_customer(message, user_id):
 
 
 async def start_new_address(message, user_id, customer_id):
+    if customer_id not in DATA["customers"]:
+        await message.reply("❌ مشتری پیدا نشد.")
+        return
+
     active_customer[user_id] = customer_id
 
     user_states[user_id] = {
@@ -904,7 +911,7 @@ def delivery_keyboard():
 
     keyboard.add(
         InlineKeyboardButton(
-            text="🆓 تحویل رایگان",
+            text="🆓 تحویل رایگان / حضوری",
             callback_data="free_delivery",
         ),
         row=1,
@@ -1079,13 +1086,32 @@ async def start_order(message, user_id):
         )
         return
 
+    customer_id = active_customer.get(user_id)
+
+    if customer_id and customer_id in DATA["customers"]:
+        await show_customer_profile(
+            message,
+            customer_id,
+        )
+        return
+
     await show_customer_start(message, user_id)
 
 
 async def create_order(message, user_id):
     customer_id = active_customer.get(user_id)
-    customer = DATA["customers"].get(customer_id, {})
+
+    if not customer_id or customer_id not in DATA["customers"]:
+        await show_customer_start(message, user_id)
+        return
+
     delivery = current_delivery.get(user_id, {})
+
+    if not delivery.get("title"):
+        await show_delivery(message, user_id)
+        return
+
+    customer = DATA["customers"].get(customer_id, {})
 
     subtotal = cart_total(user_id)
     fee = delivery_fee(delivery)
@@ -1144,9 +1170,7 @@ async def create_order(message, user_id):
     if PAYMENT_OWNER:
         payment_text += f"👤 به نام: {PAYMENT_OWNER}\n"
 
-    payment_text += (
-        "\n📸 سپس تصویر رسید پرداخت را ارسال کنید."
-    )
+    payment_text += "\n📸 سپس تصویر رسید پرداخت را ارسال کنید."
 
     user_states[user_id] = {
         "type": "payment_receipt",
@@ -1203,11 +1227,11 @@ async def on_message(message: Message):
         flush=True,
     )
 
+    state = user_states.get(user_id)
+
     # -----------------------------------------------------
     # رسید
     # -----------------------------------------------------
-
-    state = user_states.get(user_id)
 
     if (
         isinstance(state, dict)
@@ -1264,7 +1288,7 @@ async def on_message(message: Message):
         else:
             customer_id = active_customer.get(user_id)
 
-        if not customer_id:
+        if not customer_id or customer_id not in DATA["customers"]:
             return
 
         DATA["customers"][customer_id]["phone"] = phone
@@ -1272,9 +1296,7 @@ async def on_message(message: Message):
 
         user_states[user_id] = None
 
-        await message.reply(
-            "✅ مشخصات با موفقیت ثبت شد."
-        )
+        await message.reply("✅ شماره تلفن ثبت شد.")
 
         await show_delivery(
             message,
@@ -1295,6 +1317,8 @@ async def on_message(message: Message):
     if text == "/start":
         user_states[user_id] = None
         active_customer.pop(user_id, None)
+        current_delivery.pop(user_id, None)
+
         await show_home(message)
         return
 
@@ -1309,6 +1333,11 @@ async def on_message(message: Message):
         and state.get("type") == "customer_name"
     ):
         customer_id = state["customer_id"]
+
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            await message.reply("❌ خطا در ثبت مشتری. دوباره تلاش کنید.")
+            return
 
         DATA["customers"][customer_id]["name"] = text
 
@@ -1337,14 +1366,16 @@ async def on_message(message: Message):
     ):
         customer_id = state["customer_id"]
 
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            return
+
         DATA["customers"][customer_id]["phone"] = text
         save_data()
 
         user_states[user_id] = None
 
-        await message.reply(
-            "✅ شماره تلفن ثبت شد."
-        )
+        await message.reply("✅ شماره تلفن ثبت شد.")
 
         await show_delivery(
             message,
@@ -1362,6 +1393,11 @@ async def on_message(message: Message):
         and state.get("type") == "address_title"
     ):
         customer_id = state["customer_id"]
+
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            await message.reply("❌ مشتری پیدا نشد.")
+            return
 
         user_states[user_id] = {
             "type": "address_text",
@@ -1386,6 +1422,11 @@ async def on_message(message: Message):
         customer_id = state["customer_id"]
         title = state["title"]
 
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            await message.reply("❌ مشتری پیدا نشد.")
+            return
+
         DATA["customers"][customer_id].setdefault(
             "addresses",
             [],
@@ -1399,14 +1440,18 @@ async def on_message(message: Message):
         save_data()
 
         user_states[user_id] = None
+        active_customer[user_id] = customer_id
 
-        await message.reply(
-            "✅ آدرس با موفقیت ذخیره شد."
-        )
+        # آدرس تازه ثبت‌شده مستقیماً برای همین سفارش انتخاب می‌شود.
+        current_delivery[user_id] = {
+            "title": title,
+            "address": text,
+            "fee": 0,
+        }
 
-        await show_addresses(
+        await show_final_invoice(
             message,
-            customer_id,
+            user_id,
         )
 
         return
@@ -1420,6 +1465,10 @@ async def on_message(message: Message):
         and state.get("type") == "edit_customer_name"
     ):
         customer_id = state["customer_id"]
+
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            return
 
         DATA["customers"][customer_id]["name"] = text
         save_data()
@@ -1442,6 +1491,10 @@ async def on_message(message: Message):
         and state.get("type") == "edit_customer_phone"
     ):
         customer_id = state["customer_id"]
+
+        if customer_id not in DATA["customers"]:
+            user_states[user_id] = None
+            return
 
         DATA["customers"][customer_id]["phone"] = text
         save_data()
@@ -1466,7 +1519,18 @@ async def on_message(message: Message):
         customer_id = state["customer_id"]
         index = state["index"]
 
-        DATA["customers"][customer_id]["addresses"][index]["title"] = text
+        customer = DATA["customers"].get(customer_id)
+        if not customer:
+            user_states[user_id] = None
+            return
+
+        addresses = customer.get("addresses", [])
+
+        if index < 0 or index >= len(addresses):
+            user_states[user_id] = None
+            return
+
+        addresses[index]["title"] = text
 
         user_states[user_id] = {
             "type": "edit_address_text",
@@ -1493,7 +1557,18 @@ async def on_message(message: Message):
         customer_id = state["customer_id"]
         index = state["index"]
 
-        DATA["customers"][customer_id]["addresses"][index]["address"] = text
+        customer = DATA["customers"].get(customer_id)
+        if not customer:
+            user_states[user_id] = None
+            return
+
+        addresses = customer.get("addresses", [])
+
+        if index < 0 or index >= len(addresses):
+            user_states[user_id] = None
+            return
+
+        addresses[index]["address"] = text
 
         save_data()
 
@@ -1604,10 +1679,7 @@ async def on_callback(callback: CallbackQuery):
             carts[user_id].get(product_id, 0) + 1
         )
 
-        await show_cart(
-            callback.message,
-            user_id,
-        )
+        await show_cart(callback.message, user_id)
         return
 
     if data.startswith("plus_"):
@@ -1621,10 +1693,7 @@ async def on_callback(callback: CallbackQuery):
             carts[user_id].get(product_id, 0) + 1
         )
 
-        await show_cart(
-            callback.message,
-            user_id,
-        )
+        await show_cart(callback.message, user_id)
         return
 
     if data.startswith("minus_"):
@@ -1636,10 +1705,7 @@ async def on_callback(callback: CallbackQuery):
             if carts[user_id][product_id] <= 0:
                 del carts[user_id][product_id]
 
-        await show_cart(
-            callback.message,
-            user_id,
-        )
+        await show_cart(callback.message, user_id)
         return
 
     # -----------------------------------------------------
@@ -1647,10 +1713,7 @@ async def on_callback(callback: CallbackQuery):
     # -----------------------------------------------------
 
     if data == "cart":
-        await show_cart(
-            callback.message,
-            user_id,
-        )
+        await show_cart(callback.message, user_id)
         return
 
     # -----------------------------------------------------
@@ -1718,6 +1781,9 @@ async def on_callback(callback: CallbackQuery):
     if data.startswith("profile_"):
         customer_id = data[len("profile_"):]
 
+        if customer_id not in DATA["customers"]:
+            return
+
         await show_customer_profile(
             callback.message,
             customer_id,
@@ -1730,6 +1796,9 @@ async def on_callback(callback: CallbackQuery):
 
     if data.startswith("edit_customer_"):
         customer_id = data[len("edit_customer_"):]
+
+        if customer_id not in DATA["customers"]:
+            return
 
         keyboard = InlineKeyboardMarkup()
 
@@ -1766,6 +1835,9 @@ async def on_callback(callback: CallbackQuery):
     if data.startswith("edit_name_"):
         customer_id = data[len("edit_name_"):]
 
+        if customer_id not in DATA["customers"]:
+            return
+
         user_states[user_id] = {
             "type": "edit_customer_name",
             "customer_id": customer_id,
@@ -1778,6 +1850,9 @@ async def on_callback(callback: CallbackQuery):
 
     if data.startswith("edit_phone_"):
         customer_id = data[len("edit_phone_"):]
+
+        if customer_id not in DATA["customers"]:
+            return
 
         user_states[user_id] = {
             "type": "edit_customer_phone",
@@ -1802,10 +1877,7 @@ async def on_callback(callback: CallbackQuery):
         )
 
         if active_customer.get(user_id) == customer_id:
-            active_customer.pop(
-                user_id,
-                None,
-            )
+            active_customer.pop(user_id, None)
 
         save_data()
 
@@ -1821,6 +1893,9 @@ async def on_callback(callback: CallbackQuery):
 
     if data.startswith("addresses_"):
         customer_id = data[len("addresses_"):]
+
+        if customer_id not in DATA["customers"]:
+            return
 
         await show_addresses(
             callback.message,
@@ -1902,9 +1977,9 @@ async def on_callback(callback: CallbackQuery):
             "fee": 0,
         }
 
-        await callback.message.reply(
-            "🚚 روش ارسال را انتخاب کنید:",
-            components=shipping_keyboard(),
+        await show_shipping_or_invoice(
+            callback.message,
+            user_id,
         )
         return
 
@@ -1979,7 +2054,7 @@ async def on_callback(callback: CallbackQuery):
 
     if data == "free_delivery":
         await callback.message.reply(
-            "📍 تحویل رایگان را انتخاب کنید:",
+            "📍 تحویل رایگان / حضوری را انتخاب کنید:",
             components=free_delivery_keyboard(),
         )
         return
@@ -2030,6 +2105,10 @@ async def on_callback(callback: CallbackQuery):
         customer_id = active_customer.get(user_id)
 
         if not customer_id:
+            await show_customer_start(
+                callback.message,
+                user_id,
+            )
             return
 
         await start_new_address(
@@ -2104,10 +2183,29 @@ async def on_callback(callback: CallbackQuery):
         current_delivery.pop(user_id, None)
         user_states[user_id] = None
 
-        await show_home(
-            callback.message
+        await show_home(callback.message)
+        return
+
+
+# =========================================================
+# انتخاب روش ارسال برای آدرس ذخیره‌شده
+# =========================================================
+
+async def show_shipping_or_invoice(message, user_id):
+    delivery = current_delivery.get(user_id, {})
+
+    # اگر آدرس انتخاب شده است، کاربر باید روش ارسال را مشخص کند.
+    if delivery.get("address"):
+        await message.reply(
+            "🚚 روش ارسال را انتخاب کنید:",
+            components=shipping_keyboard(),
         )
         return
+
+    await show_final_invoice(
+        message,
+        user_id,
+    )
 
 
 # =========================================================
@@ -2128,3 +2226,4 @@ async def on_ready():
 
 
 bot.run()
+```
