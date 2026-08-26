@@ -2088,49 +2088,42 @@ async def on_message(
         )
 
         photo = getattr(
-            message,
-            "photo",
-            None,
-        )
+    message,
+    "photos",
+    None,
+)
 
-        if photo:
+if photo:
+    order = find_order(
+        user_id,
+        order_number,
+    )
 
-            order = find_order(
-                user_id,
-                order_number,
-            )
+    if order:
+        order["receipt"] = "ارسال شد"
+        order["payment_status"] = "رسید ارسال شد"
+        save_data()
 
-            if order:
+    await send_receipt_to_admin(
+        message,
+        order_number,
+        user_id,
+        order,
+    )
 
-                order["receipt"] = (
-                    "ارسال شد"
-                )
+    user_states[user_id] = None
 
-                order["payment_status"] = (
-                    "رسید ارسال شد"
-                )
+    await send_screen(
+        message,
+        "✅ رسید پرداخت شما دریافت شد.\n\n"
+        f"شماره سفارش: #{order_number}\n\n"
+        "رسید برای مدیریت ارسال شد و "
+        "پس از بررسی پرداخت، سفارش شما "
+        "آماده خواهد شد. 🌿",
+        user_id=user_id,
+    )
 
-                save_data()
-
-            await send_receipt_to_admin(
-                message,
-                order_number,
-                user_id,
-                order,
-            )
-
-            user_states[user_id] = None
-
-            await send_screen(
-                message,
-                "✅ رسید پرداخت شما دریافت شد.\n\n"
-                f"شماره سفارش: "
-                f"#{order_number}\n\n"
-                "رسید برای مدیریت ارسال شد و "
-                "پس از بررسی پرداخت، سفارش شما "
-                "آماده خواهد شد. 🌿",
-                user_id=user_id,
-            )
+    return
 
             return
 
