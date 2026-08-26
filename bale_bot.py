@@ -142,6 +142,15 @@ def delivery_fee(delivery):
     return int(delivery.get("fee", 0))
 
 
+def remove_phone_keyboard():
+    """
+    در نسخه‌های مختلف کتابخانه Bale، مقدار None برای حذف
+    کیبورد یا عدم ارسال components استفاده می‌شود.
+    بنابراین از این تابع فقط برای یکپارچگی مسیر استفاده می‌کنیم.
+    """
+    return None
+
+
 # =========================================================
 # دسته‌بندی‌ها
 # =========================================================
@@ -672,7 +681,7 @@ def customer_profile_keyboard(customer_id):
     keyboard.add(
         InlineKeyboardButton(
             text="📍 مدیریت آدرس‌ها",
-            callback_data=f"addresses_{customer_id}",
+            callback_data=f"addresses_profile_{customer_id}",
         ),
         row=4,
     )
@@ -723,7 +732,7 @@ def phone_keyboard():
 # آدرس‌ها
 # =========================================================
 
-def address_list_keyboard(customer_id):
+def address_list_keyboard(customer_id, back_callback=None):
     keyboard = InlineKeyboardMarkup()
 
     customer = DATA["customers"].get(customer_id, {})
@@ -750,10 +759,13 @@ def address_list_keyboard(customer_id):
     )
     row += 1
 
+    if back_callback is None:
+        back_callback = f"profile_{customer_id}"
+
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data=f"profile_{customer_id}",
+            callback_data=back_callback,
         ),
         row=row,
     )
@@ -761,22 +773,37 @@ def address_list_keyboard(customer_id):
     return keyboard
 
 
-async def show_addresses(message, customer_id):
+async def show_addresses(
+    message,
+    customer_id,
+    back_callback=None,
+):
     customer = DATA["customers"].get(customer_id, {})
+
+    if not customer:
+        await message.reply("❌ مشتری پیدا نشد.")
+        return
+
     addresses = customer.get("addresses", [])
 
-    text = (
-        "📍 آدرس‌های ذخیره‌شده\n\n"
-        + (
+    if addresses:
+        text = (
+            "📍 آدرس‌های ذخیره‌شده\n\n"
             "آدرس موردنظر را انتخاب کنید:"
-            if addresses
-            else "هنوز آدرسی ثبت نشده است."
         )
-    )
+    else:
+        text = (
+            "📍 آدرس‌های من\n\n"
+            "هنوز آدرسی ثبت نشده است.\n\n"
+            "می‌توانید یک آدرس جدید اضافه کنید."
+        )
 
     await message.reply(
         text,
-        components=address_list_keyboard(customer_id),
+        components=address_list_keyboard(
+            customer_id,
+            back_callback,
+        ),
     )
 
 
@@ -810,7 +837,7 @@ def address_management_keyboard(customer_id, index):
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data=f"addresses_{customer_id}",
+            callback_data=f"addresses_order_{customer_id}",
         ),
         row=4,
     )
@@ -1229,7 +1256,7 @@ async def on_message(message: Message):
     state = user_states.get(user_id)
 
     # -----------------------------------------------------
-    # رسید
+    # رسید پرداخت
     # -----------------------------------------------------
 
     if (
@@ -1239,13 +1266,18 @@ async def on_message(message: Message):
         order_number = state.get("order_number")
 
         if getattr(message, "photo", None):
-            for order in DATA["orders"]:
-                if order["order_number"] == order_number:
-                    order["receipt"] = "ارسال شد"
-                    order["payment_status"] = "رسید ارسال شد"
+            order = None
+
+            for item in DATA["orders"]:
+                if str(item["order_number"]) == str(order_number):
+                    item["receipt"] = "ارسال شد"
+                    item["payment_status"] = "رسید ارسال شد"
+                    order = item
                     break
 
             save_data()
+
+            # ابتدا وضعیت کاربر را پاک می‌کنیم
             user_states[user_id] = None
 
             await message.reply(
@@ -1254,20 +1286,61 @@ async def on_message(message: Message):
                 "سفارش شما پس از بررسی پرداخت آماده خواهد شد. 🌿"
             )
 
+            # اطلاعات کامل رسید
+            receipt_caption = (
+                "📸 رسید پرداخت دریافت شد.\n\n"
+                f"🔢 سفارش: #{order_number}\n"
+                f"🆔 مشتری: {user_id}"
+            )
+
+            if order:
+                receipt_caption += (
+                    f"\n👤 مشتری: {order.get('customer_name', '')}"
+                    f"\n📱 تلفن: {order.get('phone', '')}"
+                    f"\n💰 مبلغ: {money(order.get('total', 0))}"
+                )
+
+            # -------------------------------------------------
+            # ارسال خودِ عکس رسید به ادمین
+            # -------------------------------------------------
+
+            photo = getattr(message, "photo", None)
+
             for admin_id in ADMIN_CHAT_IDS:
                 try:
-                    await bot.send_message(
+                    # در نسخه‌های جدید python-bale-bot،
+                    # photo می‌تواند خود شیء Photo باشد.
+                    await bot.send_photo(
                         chat_id=int(admin_id),
-                        text=(
-                            "📸 رسید پرداخت دریافت شد.\n\n"
-                            f"🔢 سفارش: #{order_number}\n"
-                            f"🆔 مشتری: {user_id}"
-                        ),
+                        photo=photo,
+                        caption=receipt_caption,
                     )
+
                 except Exception as e:
                     logging.error(
-                        f"خطا در اطلاع رسید: {e}"
+                        f"ارسال عکس رسید به مدیر ناموفق بود: {e}"
                     )
+
+                    # اگر نسخه نصب‌شده نیاز به file_id داشته باشد،
+                    # تلاش دوم با file_id انجام می‌شود.
+                    try:
+                        photo_file_id = getattr(
+                            photo,
+                            "file_id",
+                            None,
+                        )
+
+                        if photo_file_id:
+                            await bot.send_photo(
+                                chat_id=int(admin_id),
+                                photo=photo_file_id,
+                                caption=receipt_caption,
+                            )
+
+                    except Exception as e2:
+                        logging.error(
+                            f"ارسال مجدد عکس با file_id نیز ناموفق بود: {e2}"
+                        )
 
             return
 
@@ -1295,7 +1368,11 @@ async def on_message(message: Message):
 
         user_states[user_id] = None
 
-        await message.reply("✅ شماره تلفن ثبت شد.")
+        # ارسال پیام جدید بدون MenuKeyboard
+        # باعث می‌شود دکمه «ارسال شماره تلفن» دیگر ادامه پیدا نکند.
+        await message.reply(
+            "✅ شماره تلفن ثبت شد."
+        )
 
         await show_delivery(
             message,
@@ -1335,7 +1412,9 @@ async def on_message(message: Message):
 
         if customer_id not in DATA["customers"]:
             user_states[user_id] = None
-            await message.reply("❌ خطا در ثبت مشتری. دوباره تلاش کنید.")
+            await message.reply(
+                "❌ خطا در ثبت مشتری. دوباره تلاش کنید."
+            )
             return
 
         DATA["customers"][customer_id]["name"] = text
@@ -1374,7 +1453,9 @@ async def on_message(message: Message):
 
         user_states[user_id] = None
 
-        await message.reply("✅ شماره تلفن ثبت شد.")
+        await message.reply(
+            "✅ شماره تلفن ثبت شد."
+        )
 
         await show_delivery(
             message,
@@ -1448,7 +1529,8 @@ async def on_message(message: Message):
             "fee": 0,
         }
 
-        await show_final_invoice(
+        # بعد از ثبت آدرس، روش ارسال نمایش داده می‌شود.
+        await show_shipping_or_invoice(
             message,
             user_id,
         )
@@ -1519,6 +1601,7 @@ async def on_message(message: Message):
         index = state["index"]
 
         customer = DATA["customers"].get(customer_id)
+
         if not customer:
             user_states[user_id] = None
             return
@@ -1557,6 +1640,7 @@ async def on_message(message: Message):
         index = state["index"]
 
         customer = DATA["customers"].get(customer_id)
+
         if not customer:
             user_states[user_id] = None
             return
@@ -1576,6 +1660,7 @@ async def on_message(message: Message):
         await show_addresses(
             message,
             customer_id,
+            back_callback=f"addresses_profile_{customer_id}",
         )
 
         return
@@ -1605,6 +1690,7 @@ async def on_callback(callback: CallbackQuery):
 
     if data == "previous_orders":
         user_states[user_id] = None
+
         await show_previous_orders(
             callback.message,
             user_id,
@@ -1678,7 +1764,10 @@ async def on_callback(callback: CallbackQuery):
             carts[user_id].get(product_id, 0) + 1
         )
 
-        await show_cart(callback.message, user_id)
+        await show_cart(
+            callback.message,
+            user_id,
+        )
         return
 
     if data.startswith("plus_"):
@@ -1692,7 +1781,10 @@ async def on_callback(callback: CallbackQuery):
             carts[user_id].get(product_id, 0) + 1
         )
 
-        await show_cart(callback.message, user_id)
+        await show_cart(
+            callback.message,
+            user_id,
+        )
         return
 
     if data.startswith("minus_"):
@@ -1704,7 +1796,10 @@ async def on_callback(callback: CallbackQuery):
             if carts[user_id][product_id] <= 0:
                 del carts[user_id][product_id]
 
-        await show_cart(callback.message, user_id)
+        await show_cart(
+            callback.message,
+            user_id,
+        )
         return
 
     # -----------------------------------------------------
@@ -1712,7 +1807,10 @@ async def on_callback(callback: CallbackQuery):
     # -----------------------------------------------------
 
     if data == "cart":
-        await show_cart(callback.message, user_id)
+        await show_cart(
+            callback.message,
+            user_id,
+        )
         return
 
     # -----------------------------------------------------
@@ -1887,11 +1985,11 @@ async def on_callback(callback: CallbackQuery):
         return
 
     # -----------------------------------------------------
-    # آدرس‌ها
+    # آدرس‌ها از پروفایل
     # -----------------------------------------------------
 
-    if data.startswith("addresses_"):
-        customer_id = data[len("addresses_"):]
+    if data.startswith("addresses_profile_"):
+        customer_id = data[len("addresses_profile_"):]
 
         if customer_id not in DATA["customers"]:
             return
@@ -1899,11 +1997,56 @@ async def on_callback(callback: CallbackQuery):
         await show_addresses(
             callback.message,
             customer_id,
+            back_callback=f"profile_{customer_id}",
         )
         return
 
+    # -----------------------------------------------------
+    # آدرس‌ها از مسیر سفارش
+    # -----------------------------------------------------
+
+    if data == "addresses_order":
+        customer_id = active_customer.get(user_id)
+
+        if not customer_id:
+            await show_customer_start(
+                callback.message,
+                user_id,
+            )
+            return
+
+        await show_addresses(
+            callback.message,
+            customer_id,
+            back_callback="delivery",
+        )
+        return
+
+    if data.startswith("addresses_order_"):
+        customer_id = data[len("addresses_order_"):]
+
+        if customer_id not in DATA["customers"]:
+            return
+
+        await show_addresses(
+            callback.message,
+            customer_id,
+            back_callback="delivery",
+        )
+        return
+
+    # -----------------------------------------------------
+    # افزودن آدرس
+    # -----------------------------------------------------
+
     if data.startswith("add_address_"):
         customer_id = data[len("add_address_"):]
+
+        if customer_id not in DATA["customers"]:
+            return
+
+        # تشخیص اینکه از پروفایل آمده‌ایم یا سفارش
+        state = user_states.get(user_id)
 
         await start_new_address(
             callback.message,
@@ -1947,6 +2090,10 @@ async def on_callback(callback: CallbackQuery):
         )
         return
 
+    # -----------------------------------------------------
+    # انتخاب آدرس برای سفارش
+    # -----------------------------------------------------
+
     if data.startswith("use_address_"):
         payload = data[len("use_address_"):]
 
@@ -1982,6 +2129,10 @@ async def on_callback(callback: CallbackQuery):
         )
         return
 
+    # -----------------------------------------------------
+    # اصلاح آدرس
+    # -----------------------------------------------------
+
     if data.startswith("edit_address_"):
         payload = data[len("edit_address_"):]
 
@@ -2012,6 +2163,10 @@ async def on_callback(callback: CallbackQuery):
         )
         return
 
+    # -----------------------------------------------------
+    # حذف آدرس
+    # -----------------------------------------------------
+
     if data.startswith("delete_address_"):
         payload = data[len("delete_address_"):]
 
@@ -2037,6 +2192,7 @@ async def on_callback(callback: CallbackQuery):
         await show_addresses(
             callback.message,
             customer_id,
+            back_callback=f"profile_{customer_id}",
         )
         return
 
@@ -2084,6 +2240,10 @@ async def on_callback(callback: CallbackQuery):
         )
         return
 
+    # -----------------------------------------------------
+    # آدرس‌های ذخیره‌شده
+    # -----------------------------------------------------
+
     if data == "delivery_saved":
         customer_id = active_customer.get(user_id)
 
@@ -2094,11 +2254,48 @@ async def on_callback(callback: CallbackQuery):
             )
             return
 
+        customer = DATA["customers"].get(customer_id, {})
+        addresses = customer.get("addresses", [])
+
+        # اگر آدرسی وجود ندارد:
+        # همان‌جا پیام واضح بده و امکان افزودن آدرس یا بازگشت
+        # به صفحه تحویل را بده.
+        if not addresses:
+            keyboard = InlineKeyboardMarkup()
+
+            keyboard.add(
+                InlineKeyboardButton(
+                    text="➕ افزودن آدرس",
+                    callback_data=f"add_address_{customer_id}",
+                ),
+                row=1,
+            )
+
+            keyboard.add(
+                InlineKeyboardButton(
+                    text="⬅️ بازگشت",
+                    callback_data="delivery",
+                ),
+                row=2,
+            )
+
+            await callback.message.reply(
+                "📍 آدرس‌های من\n\n"
+                "هنوز آدرسی برای شما ثبت نشده است.",
+                components=keyboard,
+            )
+            return
+
         await show_addresses(
             callback.message,
             customer_id,
+            back_callback="delivery",
         )
         return
+
+    # -----------------------------------------------------
+    # افزودن آدرس جدید از مسیر سفارش
+    # -----------------------------------------------------
 
     if data == "delivery_new_address":
         customer_id = active_customer.get(user_id)
@@ -2193,7 +2390,8 @@ async def on_callback(callback: CallbackQuery):
 async def show_shipping_or_invoice(message, user_id):
     delivery = current_delivery.get(user_id, {})
 
-    # اگر آدرس انتخاب شده است، کاربر باید روش ارسال را مشخص کند.
+    # اگر آدرس انتخاب شده است،
+    # کاربر باید روش ارسال را مشخص کند.
     if delivery.get("address"):
         await message.reply(
             "🚚 روش ارسال را انتخاب کنید:",
@@ -2225,4 +2423,3 @@ async def on_ready():
 
 
 bot.run()
-
