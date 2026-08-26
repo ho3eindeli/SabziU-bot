@@ -7,6 +7,7 @@ from bale import (
     Bot,
     Message,
     CallbackQuery,
+    InputFile,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
     MenuKeyboardMarkup,
@@ -40,13 +41,16 @@ PAYMENT_OWNER = os.getenv(
 
 STATE_FILE = "bale_data.json"
 
+
 if not TOKEN:
     raise RuntimeError("BALE_BOT_TOKEN تنظیم نشده است.")
+
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
 
 bot = Bot(token=TOKEN)
 
@@ -79,7 +83,7 @@ def load_data():
         return data
 
     except Exception as e:
-        logging.error(f"خطا در خواندن اطلاعات: {e}")
+        logging.error(f"خطا در خواندن داده‌ها: {e}")
         return default
 
 
@@ -89,6 +93,9 @@ user_states = {}
 active_customer = {}
 carts = {}
 current_delivery = {}
+
+# آخرین پیام ربات برای هر کاربر
+last_bot_message = {}
 
 
 def save_data():
@@ -103,6 +110,85 @@ def save_data():
         )
 
     os.replace(temp, STATE_FILE)
+
+
+# =========================================================
+# مدیریت پیام‌های قبلی
+# =========================================================
+
+async def delete_last_bot_message(user_id):
+    """
+    آخرین پیام ربات را حذف می‌کند.
+    """
+
+    message = last_bot_message.get(user_id)
+
+    if not message:
+        return
+
+    try:
+        await message.delete()
+    except Exception as e:
+        logging.debug(
+            f"حذف پیام قبلی ناموفق بود: {e}"
+        )
+
+    last_bot_message.pop(user_id, None)
+
+
+async def send_screen(
+    message,
+    text,
+    components=None,
+    user_id=None,
+):
+    """
+    تمام صفحات ربات از این تابع عبور می‌کنند.
+
+    قبل از ارسال صفحه جدید،
+    پیام قبلی ربات حذف می‌شود.
+    """
+
+    if user_id is None:
+        user_id = str(message.author.user_id)
+
+    await delete_last_bot_message(user_id)
+
+    new_message = await message.reply(
+        text,
+        components=components,
+    )
+
+    last_bot_message[user_id] = new_message
+
+    return new_message
+
+
+async def send_screen_callback(
+    callback,
+    text,
+    components=None,
+):
+    """
+    نسخه مخصوص callback.
+    """
+
+    user_id = str(callback.from_user.user_id)
+
+    await delete_last_bot_message(user_id)
+
+    new_message = await callback.message.reply(
+        text,
+        components=components,
+    )
+
+    last_bot_message[user_id] = new_message
+
+    return new_message
+
+
+async def clear_user_screen(user_id):
+    await delete_last_bot_message(user_id)
 
 
 # =========================================================
@@ -141,16 +227,6 @@ def cart_total(user_id):
 
 def delivery_fee(delivery):
     return int(delivery.get("fee", 0))
-
-
-def clear_state(user_id):
-    user_states.pop(user_id, None)
-
-
-def clear_order_session(user_id):
-    carts.pop(user_id, None)
-    current_delivery.pop(user_id, None)
-    user_states.pop(user_id, None)
 
 
 # =========================================================
@@ -200,14 +276,17 @@ def home_keyboard():
     return keyboard
 
 
-async def show_home(message):
-    clear_state(str(message.author.user_id))
+async def show_home(message, user_id=None):
+    if user_id is None:
+        user_id = str(message.author.user_id)
 
-    await message.reply(
+    await send_screen(
+        message,
         "سلام 👋\n\n"
         "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
         "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
         components=home_keyboard(),
+        user_id=user_id,
     )
 
 
@@ -289,12 +368,14 @@ async def show_previous_orders(message, user_id):
     else:
         text = (
             "🧾 خریدهای قبلی\n\n"
-            "شماره سفارش | تاریخ | مبلغ خرید"
+            "سفارش‌های شما:"
         )
 
-    await message.reply(
+    await send_screen(
+        message,
         text,
         components=previous_orders_keyboard(user_id),
+        user_id=user_id,
     )
 
 
@@ -310,9 +391,11 @@ async def show_order_history(message, user_id, order_number):
             break
 
     if not order:
-        await message.reply(
+        await send_screen(
+            message,
             "❌ سفارش پیدا نشد.",
             components=back_keyboard("previous_orders"),
+            user_id=user_id,
         )
         return
 
@@ -344,9 +427,11 @@ async def show_order_history(message, user_id, order_number):
     if order.get("shipping_method"):
         text += f"🚚 روش ارسال: {order['shipping_method']}\n"
 
-    await message.reply(
+    await send_screen(
+        message,
         text,
         components=back_keyboard("previous_orders"),
+        user_id=user_id,
     )
 
 
@@ -362,11 +447,7 @@ def categories_keyboard():
     for product in PRODUCTS.values():
         category = product.get("category")
 
-        if (
-            category
-            and category not in categories
-            and product.get("active", True) is not False
-        ):
+        if category and category not in categories:
             categories.append(category)
 
     row = 1
@@ -386,15 +467,6 @@ def categories_keyboard():
 
     keyboard.add(
         InlineKeyboardButton(
-            text="🧺 سبد خرید",
-            callback_data="cart",
-        ),
-        row=row,
-    )
-    row += 1
-
-    keyboard.add(
-        InlineKeyboardButton(
             text="⬅️ بازگشت",
             callback_data="home",
         ),
@@ -404,13 +476,16 @@ def categories_keyboard():
     return keyboard
 
 
-async def show_shop(message):
-    clear_state(str(message.author.user_id))
+async def show_shop(message, user_id=None):
+    if user_id is None:
+        user_id = str(message.author.user_id)
 
-    await message.reply(
+    await send_screen(
+        message,
         "🛒 فروشگاه سبزی‌یو\n\n"
         "دسته‌بندی کالاها را انتخاب کنید:",
         components=categories_keyboard(),
+        user_id=user_id,
     )
 
 
@@ -419,6 +494,7 @@ def category_keyboard(category):
     row = 1
 
     for product_id, product in PRODUCTS.items():
+
         if product.get("category") != category:
             continue
 
@@ -432,16 +508,8 @@ def category_keyboard(category):
             ),
             row=row,
         )
-        row += 1
 
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🧺 سبد خرید",
-            callback_data="cart",
-        ),
-        row=row,
-    )
-    row += 1
+        row += 1
 
     keyboard.add(
         InlineKeyboardButton(
@@ -454,15 +522,7 @@ def category_keyboard(category):
     return keyboard
 
 
-async def show_category(message, category):
-    await message.reply(
-        f"{CATEGORY_NAMES.get(category, '📦 محصولات')}\n\n"
-        "محصول موردنظر را انتخاب کنید:",
-        components=category_keyboard(category),
-    )
-
-
-def product_keyboard(product_id, category):
+def product_keyboard(product_id):
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -475,18 +535,10 @@ def product_keyboard(product_id, category):
 
     keyboard.add(
         InlineKeyboardButton(
-            text="🧺 سبد خرید",
-            callback_data="cart",
+            text="⬅️ بازگشت",
+            callback_data="shop",
         ),
         row=2,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="⬅️ بازگشت",
-            callback_data=f"category_{category}",
-        ),
-        row=3,
     )
 
     return keyboard
@@ -501,6 +553,7 @@ def cart_keyboard(user_id):
     row = 1
 
     for product_id, quantity in carts.get(user_id, {}).items():
+
         product = PRODUCTS.get(product_id)
 
         if not product:
@@ -513,6 +566,7 @@ def cart_keyboard(user_id):
             ),
             row=row,
         )
+
         row += 1
 
         keyboard.add(
@@ -522,9 +576,11 @@ def cart_keyboard(user_id):
             ),
             row=row,
         )
+
         row += 1
 
     if carts.get(user_id):
+
         keyboard.add(
             InlineKeyboardButton(
                 text="📦 ثبت سفارش",
@@ -532,6 +588,7 @@ def cart_keyboard(user_id):
             ),
             row=row,
         )
+
         row += 1
 
     keyboard.add(
@@ -541,6 +598,7 @@ def cart_keyboard(user_id):
         ),
         row=row,
     )
+
     row += 1
 
     keyboard.add(
@@ -558,22 +616,31 @@ async def show_cart(message, user_id):
     cart = carts.get(user_id, {})
 
     if not cart:
-        await message.reply(
+
+        await send_screen(
+            message,
             "🧺 سبد خرید شما خالی است.",
             components=back_keyboard("shop"),
+            user_id=user_id,
         )
+
         return
 
-    lines = ["🧾 فاکتور خرید تا این لحظه\n"]
+    lines = [
+        "🧾 فاکتور خرید تا این لحظه\n"
+    ]
+
     subtotal = 0
 
     for product_id, quantity in cart.items():
+
         product = PRODUCTS.get(product_id)
 
         if not product:
             continue
 
         item_total = product["price"] * quantity
+
         subtotal += item_total
 
         lines.append(
@@ -582,11 +649,15 @@ async def show_cart(message, user_id):
             f"  {money(item_total)}\n"
         )
 
-    lines.append(f"💰 مبلغ کالاها: {money(subtotal)}")
+    lines.append(
+        f"💰 مبلغ کالاها: {money(subtotal)}"
+    )
 
-    await message.reply(
+    await send_screen(
+        message,
         "\n".join(lines),
         components=cart_keyboard(user_id),
+        user_id=user_id,
     )
 
 
@@ -596,9 +667,11 @@ async def show_cart(message, user_id):
 
 def customer_start_keyboard(user_id):
     keyboard = InlineKeyboardMarkup()
+
     customers = get_user_customers(user_id)
 
     if customers:
+
         keyboard.add(
             InlineKeyboardButton(
                 text="👤 مشتری قدیمی",
@@ -622,7 +695,9 @@ def customer_start_keyboard(user_id):
             ),
             row=3,
         )
+
     else:
+
         keyboard.add(
             InlineKeyboardButton(
                 text="👤 ثبت مشخصات",
@@ -643,30 +718,38 @@ def customer_start_keyboard(user_id):
 
 
 async def show_customer_start(message, user_id):
+
     customers = get_user_customers(user_id)
 
     if customers:
+
         text = (
             "👤 مشخصات مشتری\n\n"
             "یکی از گزینه‌های زیر را انتخاب کنید:"
         )
+
     else:
+
         text = (
             "👤 ثبت مشخصات مشتری\n\n"
             "برای ادامه سفارش ابتدا مشخصات خود را ثبت کنید:"
         )
 
-    await message.reply(
+    await send_screen(
+        message,
         text,
         components=customer_start_keyboard(user_id),
+        user_id=user_id,
     )
 
 
 def customer_list_keyboard(user_id):
     keyboard = InlineKeyboardMarkup()
+
     row = 1
 
     for customer_id, customer in get_user_customers(user_id):
+
         keyboard.add(
             InlineKeyboardButton(
                 text=f"👤 {customer.get('name', 'بدون نام')}",
@@ -674,6 +757,7 @@ def customer_list_keyboard(user_id):
             ),
             row=row,
         )
+
         row += 1
 
     keyboard.add(
@@ -688,14 +772,18 @@ def customer_list_keyboard(user_id):
 
 
 async def show_customer_list(message, user_id):
-    await message.reply(
+
+    await send_screen(
+        message,
         "👤 مشتریان ثبت‌شده\n\n"
         "مشتری موردنظر را انتخاب کنید:",
         components=customer_list_keyboard(user_id),
+        user_id=user_id,
     )
 
 
 def customer_profile_keyboard(customer_id):
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -741,21 +829,27 @@ def customer_profile_keyboard(customer_id):
     return keyboard
 
 
-async def show_customer_profile(message, customer_id):
+async def show_customer_profile(
+    message,
+    customer_id,
+    user_id=None,
+):
+
     customer = DATA["customers"].get(customer_id)
 
     if not customer:
-        await message.reply("❌ مشتری پیدا نشد.")
         return
 
-    addresses_count = len(customer.get("addresses", []))
+    if user_id is None:
+        user_id = str(message.author.user_id)
 
-    await message.reply(
+    await send_screen(
+        message,
         f"👤 نام: {customer.get('name', '')}\n"
-        f"📱 تلفن: {customer.get('phone', '')}\n"
-        f"📍 تعداد آدرس‌ها: {addresses_count}\n\n"
+        f"📱 تلفن: {customer.get('phone', '')}\n\n"
         "عملیات موردنظر:",
         components=customer_profile_keyboard(customer_id),
+        user_id=user_id,
     )
 
 
@@ -764,6 +858,7 @@ async def show_customer_profile(message, customer_id):
 # =========================================================
 
 def phone_keyboard():
+
     keyboard = MenuKeyboardMarkup()
 
     keyboard.add(
@@ -780,15 +875,27 @@ def phone_keyboard():
 # آدرس‌ها
 # =========================================================
 
-def address_list_keyboard(customer_id, back_callback=None):
+def address_list_keyboard(
+    customer_id,
+    back_callback=None,
+):
+
     keyboard = InlineKeyboardMarkup()
 
-    customer = DATA["customers"].get(customer_id, {})
-    addresses = customer.get("addresses", [])
+    customer = DATA["customers"].get(
+        customer_id,
+        {},
+    )
+
+    addresses = customer.get(
+        "addresses",
+        [],
+    )
 
     row = 1
 
     for index, address in enumerate(addresses):
+
         keyboard.add(
             InlineKeyboardButton(
                 text=f"📍 {address.get('title', 'آدرس')}",
@@ -796,6 +903,7 @@ def address_list_keyboard(customer_id, back_callback=None):
             ),
             row=row,
         )
+
         row += 1
 
     keyboard.add(
@@ -805,6 +913,7 @@ def address_list_keyboard(customer_id, back_callback=None):
         ),
         row=row,
     )
+
     row += 1
 
     if back_callback is None:
@@ -825,41 +934,63 @@ async def show_addresses(
     message,
     customer_id,
     back_callback=None,
+    user_id=None,
 ):
-    customer = DATA["customers"].get(customer_id)
+
+    customer = DATA["customers"].get(
+        customer_id,
+        {},
+    )
 
     if not customer:
-        await message.reply("❌ مشتری پیدا نشد.")
+
+        await send_screen(
+            message,
+            "❌ مشتری پیدا نشد.",
+            user_id=user_id,
+        )
+
         return
 
-    addresses = customer.get("addresses", [])
+    if user_id is None:
+        user_id = str(message.author.user_id)
+
+    addresses = customer.get(
+        "addresses",
+        [],
+    )
 
     if addresses:
+
         text = (
             "📍 آدرس‌های ذخیره‌شده\n\n"
             "آدرس موردنظر را انتخاب کنید:"
         )
+
     else:
+
         text = (
             "📍 آدرس‌های من\n\n"
             "هنوز آدرسی ثبت نشده است.\n\n"
             "می‌توانید یک آدرس جدید اضافه کنید."
         )
 
-    await message.reply(
+    await send_screen(
+        message,
         text,
         components=address_list_keyboard(
             customer_id,
             back_callback,
         ),
+        user_id=user_id,
     )
 
 
 def address_management_keyboard(
     customer_id,
     index,
-    back_callback,
 ):
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -889,7 +1020,7 @@ def address_management_keyboard(
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data=back_callback,
+            callback_data=f"addresses_order_{customer_id}",
         ),
         row=4,
     )
@@ -902,7 +1033,9 @@ def address_management_keyboard(
 # =========================================================
 
 async def start_new_customer(message, user_id):
+
     customers = get_user_customers(user_id)
+
     number = len(customers) + 1
 
     while f"{user_id}_customer_{number}" in DATA["customers"]:
@@ -925,15 +1058,28 @@ async def start_new_customer(message, user_id):
 
     save_data()
 
-    await message.reply(
+    await send_screen(
+        message,
         "👤 ثبت مشخصات مشتری\n\n"
-        "لطفاً نام و نام خانوادگی را وارد کنید:"
+        "لطفاً نام و نام خانوادگی را وارد کنید:",
+        user_id=user_id,
     )
 
 
-async def start_new_address(message, user_id, customer_id):
+async def start_new_address(
+    message,
+    user_id,
+    customer_id,
+):
+
     if customer_id not in DATA["customers"]:
-        await message.reply("❌ مشتری پیدا نشد.")
+
+        await send_screen(
+            message,
+            "❌ مشتری پیدا نشد.",
+            user_id=user_id,
+        )
+
         return
 
     active_customer[user_id] = customer_id
@@ -943,10 +1089,12 @@ async def start_new_address(message, user_id, customer_id):
         "customer_id": customer_id,
     }
 
-    await message.reply(
+    await send_screen(
+        message,
         "➕ افزودن آدرس جدید\n\n"
         "یک نام برای آدرس وارد کنید.\n"
-        "مثلاً: خانه، محل کار، فروشگاه"
+        "مثلاً: خانه، محل کار، فروشگاه",
+        user_id=user_id,
     )
 
 
@@ -955,6 +1103,7 @@ async def start_new_address(message, user_id, customer_id):
 # =========================================================
 
 def free_delivery_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -985,6 +1134,7 @@ def free_delivery_keyboard():
 
 
 def delivery_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -1023,14 +1173,18 @@ def delivery_keyboard():
 
 
 async def show_delivery(message, user_id):
-    await message.reply(
+
+    await send_screen(
+        message,
         "📍 محل تحویل سفارش\n\n"
         "روش تحویل را انتخاب کنید:",
         components=delivery_keyboard(),
+        user_id=user_id,
     )
 
 
 def shipping_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -1065,6 +1219,7 @@ def shipping_keyboard():
 # =========================================================
 
 def final_invoice_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -1085,18 +1240,10 @@ def final_invoice_keyboard():
 
     keyboard.add(
         InlineKeyboardButton(
-            text="📍 اصلاح نحوه تحویل",
-            callback_data="delivery",
-        ),
-        row=3,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
             text="➕ ادامه خرید",
             callback_data="shop",
         ),
-        row=4,
+        row=3,
     )
 
     keyboard.add(
@@ -1104,28 +1251,44 @@ def final_invoice_keyboard():
             text="❌ لغو خرید",
             callback_data="cancel_cart",
         ),
-        row=5,
+        row=4,
     )
 
     return keyboard
 
 
-async def show_final_invoice(message, user_id):
-    delivery = current_delivery.get(user_id, {})
-    customer_id = active_customer.get(user_id)
-    customer = DATA["customers"].get(customer_id, {})
+async def show_final_invoice(
+    message,
+    user_id,
+):
 
-    if not carts.get(user_id):
-        await show_cart(message, user_id)
-        return
+    delivery = current_delivery.get(
+        user_id,
+        {},
+    )
+
+    customer_id = active_customer.get(
+        user_id
+    )
+
+    customer = DATA["customers"].get(
+        customer_id,
+        {},
+    )
 
     subtotal = cart_total(user_id)
+
     fee = delivery_fee(delivery)
+
     total = subtotal + fee
 
     lines = []
 
-    for product_id, quantity in carts.get(user_id, {}).items():
+    for product_id, quantity in carts.get(
+        user_id,
+        {},
+    ).items():
+
         product = PRODUCTS.get(product_id)
 
         if not product:
@@ -1153,14 +1316,22 @@ async def show_final_invoice(message, user_id):
     )
 
     if delivery.get("address"):
-        text += f"🏠 آدرس: {delivery['address']}\n"
+        text += (
+            f"🏠 آدرس: "
+            f"{delivery['address']}\n"
+        )
 
     if delivery.get("shipping_method"):
-        text += f"🚚 روش ارسال: {delivery['shipping_method']}\n"
+        text += (
+            f"🚚 روش ارسال: "
+            f"{delivery['shipping_method']}\n"
+        )
 
-    await message.reply(
+    await send_screen(
+        message,
         text,
         components=final_invoice_keyboard(),
+        user_id=user_id,
     )
 
 
@@ -1169,63 +1340,113 @@ async def show_final_invoice(message, user_id):
 # =========================================================
 
 async def start_order(message, user_id):
+
     if not carts.get(user_id):
-        await message.reply(
+
+        await send_screen(
+            message,
             "🧺 سبد خرید شما خالی است.",
             components=back_keyboard("shop"),
+            user_id=user_id,
         )
+
         return
 
     customer_id = active_customer.get(user_id)
 
-    if customer_id and customer_id in DATA["customers"]:
+    if (
+        customer_id
+        and customer_id in DATA["customers"]
+    ):
+
         await show_customer_profile(
             message,
             customer_id,
+            user_id,
         )
+
         return
 
-    await show_customer_start(message, user_id)
+    await show_customer_start(
+        message,
+        user_id,
+    )
 
 
-async def create_order(message, user_id):
-    customer_id = active_customer.get(user_id)
+async def create_order(
+    message,
+    user_id,
+):
 
-    if not customer_id or customer_id not in DATA["customers"]:
-        await show_customer_start(message, user_id)
+    customer_id = active_customer.get(
+        user_id
+    )
+
+    if (
+        not customer_id
+        or customer_id not in DATA["customers"]
+    ):
+
+        await show_customer_start(
+            message,
+            user_id,
+        )
+
         return
 
-    delivery = current_delivery.get(user_id, {})
+    delivery = current_delivery.get(
+        user_id,
+        {},
+    )
 
     if not delivery.get("title"):
-        await show_delivery(message, user_id)
+
+        await show_delivery(
+            message,
+            user_id,
+        )
+
         return
 
-    customer = DATA["customers"].get(customer_id, {})
+    customer = DATA["customers"].get(
+        customer_id,
+        {},
+    )
 
     subtotal = cart_total(user_id)
+
     fee = delivery_fee(delivery)
+
     total = subtotal + fee
 
     order_number = DATA["next_order_number"]
+
     DATA["next_order_number"] += 1
 
     items = []
 
-    for product_id, quantity in carts.get(user_id, {}).items():
+    for product_id, quantity in carts.get(
+        user_id,
+        {},
+    ).items():
+
         product = PRODUCTS.get(product_id)
 
         if not product:
             continue
 
-        items.append({
-            "product_id": product_id,
-            "name": product["name"],
-            "size": product["size"],
-            "quantity": quantity,
-            "unit_price": product["price"],
-            "subtotal": product["price"] * quantity,
-        })
+        items.append(
+            {
+                "product_id": product_id,
+                "name": product["name"],
+                "size": product["size"],
+                "quantity": quantity,
+                "unit_price": product["price"],
+                "subtotal": (
+                    product["price"] * quantity
+                ),
+            }
+        )
 
     order = {
         "order_number": order_number,
@@ -1233,20 +1454,36 @@ async def create_order(message, user_id):
         "customer_id": customer_id,
         "date": now_text(),
         "created_at": datetime.now().isoformat(),
-        "customer_name": customer.get("name", ""),
-        "phone": customer.get("phone", ""),
+        "customer_name": customer.get(
+            "name",
+            "",
+        ),
+        "phone": customer.get(
+            "phone",
+            "",
+        ),
         "items": items,
         "subtotal": subtotal,
         "delivery_fee": fee,
         "total": total,
-        "delivery_place": delivery.get("title", ""),
-        "address": delivery.get("address", ""),
-        "shipping_method": delivery.get("shipping_method", ""),
+        "delivery_place": delivery.get(
+            "title",
+            "",
+        ),
+        "address": delivery.get(
+            "address",
+            "",
+        ),
+        "shipping_method": delivery.get(
+            "shipping_method",
+            "",
+        ),
         "payment_status": "در انتظار پرداخت",
         "receipt": "",
     }
 
     DATA["orders"].append(order)
+
     save_data()
 
     payment_text = (
@@ -1258,19 +1495,38 @@ async def create_order(message, user_id):
     )
 
     if PAYMENT_OWNER:
-        payment_text += f"👤 به نام: {PAYMENT_OWNER}\n"
+        payment_text += (
+            f"👤 به نام: {PAYMENT_OWNER}\n"
+        )
 
-    payment_text += "\n📸 سپس تصویر رسید پرداخت را ارسال کنید."
+    payment_text += (
+        "\n📸 سپس تصویر رسید پرداخت را ارسال کنید."
+    )
 
     user_states[user_id] = {
         "type": "payment_receipt",
         "order_number": order_number,
     }
 
-    carts.pop(user_id, None)
-    current_delivery.pop(user_id, None)
+    carts.pop(
+        user_id,
+        None,
+    )
 
-    await message.reply(payment_text)
+    current_delivery.pop(
+        user_id,
+        None,
+    )
+
+    await send_screen(
+        message,
+        payment_text,
+        user_id=user_id,
+    )
+
+    # -----------------------------------------------------
+    # اطلاع مدیر از سفارش
+    # -----------------------------------------------------
 
     admin_text = (
         "🆕 سفارش جدید سبزی‌یو\n\n"
@@ -1282,10 +1538,14 @@ async def create_order(message, user_id):
     )
 
     if order["address"]:
-        admin_text += f"🏠 آدرس: {order['address']}\n"
+        admin_text += (
+            f"🏠 آدرس: {order['address']}\n"
+        )
 
     if order["shipping_method"]:
-        admin_text += f"🚚 ارسال: {order['shipping_method']}\n"
+        admin_text += (
+            f"🚚 ارسال: {order['shipping_method']}\n"
+        )
 
     admin_text += (
         f"\n💰 مبلغ نهایی: {money(total)}\n"
@@ -1293,15 +1553,122 @@ async def create_order(message, user_id):
     )
 
     for admin_id in ADMIN_CHAT_IDS:
+
         try:
+
             await bot.send_message(
                 chat_id=int(admin_id),
                 text=admin_text,
             )
+
         except Exception as e:
+
             logging.error(
-                f"ارسال سفارش به مدیر ناموفق بود: {e}"
+                f"ارسال سفارش به مدیر "
+                f"{admin_id} ناموفق بود: {e}"
             )
+
+
+# =========================================================
+# ارسال رسید به مدیر
+# =========================================================
+
+async def send_receipt_to_admin(
+    message,
+    order_number,
+    user_id,
+    order,
+):
+
+    photo = getattr(
+        message,
+        "photo",
+        None,
+    )
+
+    if not photo:
+        logging.error(
+            "پیام رسید photo ندارد."
+        )
+        return
+
+    try:
+
+        # -------------------------------------------------
+        # استخراج file_id
+        # -------------------------------------------------
+
+        photo_file = photo
+
+        if isinstance(
+            photo,
+            (list, tuple),
+        ):
+            photo_file = photo[-1]
+
+        file_id = getattr(
+            photo_file,
+            "file_id",
+            None,
+        )
+
+        if not file_id:
+
+            logging.error(
+                "file_id عکس رسید پیدا نشد."
+            )
+
+            return
+
+        receipt_caption = (
+            "📸 رسید پرداخت دریافت شد.\n\n"
+            f"🔢 سفارش: #{order_number}\n"
+            f"🆔 مشتری: {user_id}"
+        )
+
+        if order:
+
+            receipt_caption += (
+                f"\n👤 مشتری: "
+                f"{order.get('customer_name', '')}"
+                f"\n📱 تلفن: "
+                f"{order.get('phone', '')}"
+                f"\n💰 مبلغ: "
+                f"{money(order.get('total', 0))}"
+            )
+
+        # -------------------------------------------------
+        # ارسال عکس به تمام مدیرها
+        # -------------------------------------------------
+
+        for admin_id in ADMIN_CHAT_IDS:
+
+            try:
+
+                await bot.send_photo(
+                    chat_id=int(admin_id),
+                    photo=InputFile(file_id),
+                    caption=receipt_caption,
+                )
+
+                logging.info(
+                    f"رسید سفارش #{order_number} "
+                    f"به مدیر {admin_id} ارسال شد."
+                )
+
+            except Exception as e:
+
+                logging.error(
+                    f"ارسال رسید سفارش "
+                    f"#{order_number} به مدیر "
+                    f"{admin_id} ناموفق بود: {e}"
+                )
+
+    except Exception as e:
+
+        logging.error(
+            f"خطای کلی ارسال رسید: {e}"
+        )
 
 
 # =========================================================
@@ -1310,122 +1677,133 @@ async def create_order(message, user_id):
 
 @bot.event
 async def on_message(message: Message):
-    user_id = str(message.author.user_id)
+
+    user_id = str(
+        message.author.user_id
+    )
 
     print(
         f"USER_ID: {user_id}",
         flush=True,
     )
 
-    state = user_states.get(user_id)
+    state = user_states.get(
+        user_id
+    )
 
-    # -----------------------------------------------------
+    # =====================================================
     # رسید پرداخت
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "payment_receipt"
+        and state.get("type")
+        == "payment_receipt"
     ):
-        order_number = state.get("order_number")
 
-        if getattr(message, "photo", None):
+        order_number = state.get(
+            "order_number"
+        )
+
+        if getattr(
+            message,
+            "photo",
+            None,
+        ):
+
             order = None
 
             for item in DATA["orders"]:
-                if str(item["order_number"]) == str(order_number):
+
+                if str(
+                    item["order_number"]
+                ) == str(order_number):
+
                     item["receipt"] = "ارسال شد"
-                    item["payment_status"] = "رسید ارسال شد"
+
+                    item["payment_status"] = (
+                        "رسید ارسال شد"
+                    )
+
                     order = item
+
                     break
 
             save_data()
 
-            user_states.pop(user_id, None)
+            user_states[user_id] = None
 
-            await message.reply(
+            await clear_user_screen(
+                user_id
+            )
+
+            await send_screen(
+                message,
                 "✅ رسید پرداخت شما دریافت شد.\n\n"
                 f"شماره سفارش: #{order_number}\n\n"
-                "سفارش شما پس از بررسی پرداخت آماده خواهد شد. 🌿"
+                "سفارش شما پس از بررسی پرداخت آماده خواهد شد. 🌿",
+                user_id=user_id,
             )
 
-            receipt_caption = (
-                "📸 رسید پرداخت دریافت شد.\n\n"
-                f"🔢 سفارش: #{order_number}\n"
-                f"🆔 مشتری: {user_id}"
+            await send_receipt_to_admin(
+                message,
+                order_number,
+                user_id,
+                order,
             )
-
-            if order:
-                receipt_caption += (
-                    f"\n👤 مشتری: {order.get('customer_name', '')}"
-                    f"\n📱 تلفن: {order.get('phone', '')}"
-                    f"\n💰 مبلغ: {money(order.get('total', 0))}"
-                )
-
-            photo = getattr(message, "photo", None)
-
-            for admin_id in ADMIN_CHAT_IDS:
-                try:
-                    await bot.send_photo(
-                        chat_id=int(admin_id),
-                        photo=photo,
-                        caption=receipt_caption,
-                    )
-
-                except Exception as e:
-                    logging.error(
-                        f"ارسال عکس رسید به مدیر ناموفق بود: {e}"
-                    )
-
-                    try:
-                        photo_file_id = getattr(
-                            photo,
-                            "file_id",
-                            None,
-                        )
-
-                        if photo_file_id:
-                            await bot.send_photo(
-                                chat_id=int(admin_id),
-                                photo=photo_file_id,
-                                caption=receipt_caption,
-                            )
-
-                    except Exception as e2:
-                        logging.error(
-                            f"ارسال مجدد عکس با file_id نیز ناموفق بود: {e2}"
-                        )
 
             return
 
-    # -----------------------------------------------------
+    # =====================================================
     # شماره تلفن
-    # -----------------------------------------------------
+    # =====================================================
 
     if message.contact:
+
         phone = message.contact.phone_number
-        state = user_states.get(user_id)
+
+        state = user_states.get(
+            user_id
+        )
 
         if (
             isinstance(state, dict)
-            and state.get("type") == "customer_phone"
+            and state.get("type")
+            == "customer_phone"
         ):
-            customer_id = state["customer_id"]
+
+            customer_id = state[
+                "customer_id"
+            ]
 
         else:
-            customer_id = active_customer.get(user_id)
 
-        if not customer_id or customer_id not in DATA["customers"]:
+            customer_id = active_customer.get(
+                user_id
+            )
+
+        if (
+            not customer_id
+            or customer_id not in DATA["customers"]
+        ):
             return
 
-        DATA["customers"][customer_id]["phone"] = phone
+        DATA["customers"][
+            customer_id
+        ]["phone"] = phone
+
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
 
-        await message.reply(
-            "✅ شماره تلفن ثبت شد.\n\n"
-            "📍 حالا محل تحویل سفارش را انتخاب کنید."
+        await clear_user_screen(
+            user_id
+        )
+
+        await send_screen(
+            message,
+            "✅ شماره تلفن ثبت شد.",
+            user_id=user_id,
         )
 
         await show_delivery(
@@ -1435,49 +1813,78 @@ async def on_message(message: Message):
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # متن
-    # -----------------------------------------------------
+    # =====================================================
 
     if not message.content:
         return
 
     text = message.content.strip()
 
-    # -----------------------------------------------------
-    # /start
-    # -----------------------------------------------------
+    # =====================================================
+    # شروع
+    # =====================================================
 
     if text == "/start":
-        user_states.pop(user_id, None)
-        active_customer.pop(user_id, None)
-        current_delivery.pop(user_id, None)
-        carts.pop(user_id, None)
 
-        await show_home(message)
+        user_states[user_id] = None
+
+        active_customer.pop(
+            user_id,
+            None,
+        )
+
+        current_delivery.pop(
+            user_id,
+            None,
+        )
+
+        carts.pop(
+            user_id,
+            None,
+        )
+
+        await show_home(
+            message,
+            user_id,
+        )
+
         return
 
-    state = user_states.get(user_id)
+    state = user_states.get(
+        user_id
+    )
 
-    # -----------------------------------------------------
+    # =====================================================
     # نام مشتری
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "customer_name"
+        and state.get("type")
+        == "customer_name"
     ):
-        customer_id = state["customer_id"]
+
+        customer_id = state[
+            "customer_id"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
 
-            await message.reply(
-                "❌ خطا در ثبت مشتری. دوباره تلاش کنید."
+            user_states[user_id] = None
+
+            await send_screen(
+                message,
+                "❌ خطا در ثبت مشتری. دوباره تلاش کنید.",
+                user_id=user_id,
             )
+
             return
 
-        DATA["customers"][customer_id]["name"] = text
+        DATA["customers"][
+            customer_id
+        ]["name"] = text
 
         user_states[user_id] = {
             "type": "customer_phone",
@@ -1486,36 +1893,51 @@ async def on_message(message: Message):
 
         save_data()
 
-        await message.reply(
+        await send_screen(
+            message,
             "👤 نام ثبت شد.\n\n"
             "📱 لطفاً شماره تلفن خود را با دکمه زیر ارسال کنید:",
             components=phone_keyboard(),
+            user_id=user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # شماره تلفن متنی
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "customer_phone"
+        and state.get("type")
+        == "customer_phone"
     ):
-        customer_id = state["customer_id"]
+
+        customer_id = state[
+            "customer_id"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
+
+            user_states[user_id] = None
             return
 
-        DATA["customers"][customer_id]["phone"] = text
+        DATA["customers"][
+            customer_id
+        ]["phone"] = text
+
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
 
-        await message.reply(
-            "✅ شماره تلفن ثبت شد.\n\n"
-            "📍 حالا محل تحویل سفارش را انتخاب کنید."
+        await clear_user_screen(
+            user_id
+        )
+
+        await send_screen(
+            message,
+            "✅ شماره تلفن ثبت شد.",
+            user_id=user_id,
         )
 
         await show_delivery(
@@ -1525,22 +1947,30 @@ async def on_message(message: Message):
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # نام آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "address_title"
+        and state.get("type")
+        == "address_title"
     ):
-        customer_id = state["customer_id"]
+
+        customer_id = state[
+            "customer_id"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
 
-            await message.reply(
-                "❌ مشتری پیدا نشد."
+            user_states[user_id] = None
+
+            await send_screen(
+                message,
+                "❌ مشتری پیدا نشد.",
+                user_id=user_id,
             )
+
             return
 
         user_states[user_id] = {
@@ -1549,141 +1979,185 @@ async def on_message(message: Message):
             "title": text,
         }
 
-        await message.reply(
-            "🏠 حالا آدرس کامل را وارد کنید:"
+        await send_screen(
+            message,
+            "🏠 حالا آدرس کامل را وارد کنید:",
+            user_id=user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # متن آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "address_text"
+        and state.get("type")
+        == "address_text"
     ):
-        customer_id = state["customer_id"]
-        title = state["title"]
+
+        customer_id = state[
+            "customer_id"
+        ]
+
+        title = state[
+            "title"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
 
-            await message.reply(
-                "❌ مشتری پیدا نشد."
+            user_states[user_id] = None
+
+            await send_screen(
+                message,
+                "❌ مشتری پیدا نشد.",
+                user_id=user_id,
             )
+
             return
 
-        DATA["customers"][customer_id].setdefault(
+        DATA["customers"][
+            customer_id
+        ].setdefault(
             "addresses",
             [],
         )
 
-        new_address = {
-            "title": title,
-            "address": text,
-        }
-
-        DATA["customers"][customer_id]["addresses"].append(
-            new_address
+        DATA["customers"][
+            customer_id
+        ]["addresses"].append(
+            {
+                "title": title,
+                "address": text,
+            }
         )
 
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
+
         active_customer[user_id] = customer_id
 
-        # آدرس جدید همان لحظه برای سفارش انتخاب می‌شود.
         current_delivery[user_id] = {
             "title": title,
             "address": text,
             "fee": 0,
         }
 
-        # مستقیماً انتخاب روش ارسال
-        await message.reply(
-            "✅ آدرس با موفقیت ثبت شد.\n\n"
-            f"📍 {title}\n"
-            f"🏠 {text}\n\n"
-            "🚚 حالا روش ارسال را انتخاب کنید:",
-            components=shipping_keyboard(),
+        await show_shipping_or_invoice(
+            message,
+            user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح نام
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "edit_customer_name"
+        and state.get("type")
+        == "edit_customer_name"
     ):
-        customer_id = state["customer_id"]
+
+        customer_id = state[
+            "customer_id"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
+            user_states[user_id] = None
             return
 
-        DATA["customers"][customer_id]["name"] = text
+        DATA["customers"][
+            customer_id
+        ]["name"] = text
+
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
 
         await show_customer_profile(
             message,
             customer_id,
+            user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح تلفن
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "edit_customer_phone"
+        and state.get("type")
+        == "edit_customer_phone"
     ):
-        customer_id = state["customer_id"]
+
+        customer_id = state[
+            "customer_id"
+        ]
 
         if customer_id not in DATA["customers"]:
-            user_states.pop(user_id, None)
+            user_states[user_id] = None
             return
 
-        DATA["customers"][customer_id]["phone"] = text
+        DATA["customers"][
+            customer_id
+        ]["phone"] = text
+
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
 
         await show_customer_profile(
             message,
             customer_id,
+            user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح عنوان آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "edit_address_title"
+        and state.get("type")
+        == "edit_address_title"
     ):
-        customer_id = state["customer_id"]
-        index = state["index"]
 
-        customer = DATA["customers"].get(customer_id)
+        customer_id = state[
+            "customer_id"
+        ]
+
+        index = state[
+            "index"
+        ]
+
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
-            user_states.pop(user_id, None)
+
+            user_states[user_id] = None
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
-            user_states.pop(user_id, None)
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
+            user_states[user_id] = None
             return
 
         addresses[index]["title"] = text
@@ -1696,45 +2170,67 @@ async def on_message(message: Message):
 
         save_data()
 
-        await message.reply(
-            "🏠 آدرس کامل جدید را وارد کنید:"
+        await send_screen(
+            message,
+            "🏠 آدرس جدید را وارد کنید:",
+            user_id=user_id,
         )
 
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح متن آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "edit_address_text"
+        and state.get("type")
+        == "edit_address_text"
     ):
-        customer_id = state["customer_id"]
-        index = state["index"]
 
-        customer = DATA["customers"].get(customer_id)
+        customer_id = state[
+            "customer_id"
+        ]
+
+        index = state[
+            "index"
+        ]
+
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
-            user_states.pop(user_id, None)
+
+            user_states[user_id] = None
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
-            user_states.pop(user_id, None)
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
+            user_states[user_id] = None
             return
 
         addresses[index]["address"] = text
 
         save_data()
 
-        user_states.pop(user_id, None)
+        user_states[user_id] = None
 
         await show_addresses(
             message,
             customer_id,
-            back_callback=f"addresses_profile_{customer_id}",
+            back_callback=(
+                f"addresses_profile_{customer_id}"
+            ),
+            user_id=user_id,
         )
 
         return
@@ -1745,220 +2241,291 @@ async def on_message(message: Message):
 # =========================================================
 
 @bot.event
-async def on_callback(callback: CallbackQuery):
-    user_id = str(callback.from_user.user_id)
+async def on_callback(
+    callback: CallbackQuery
+):
+
+    user_id = str(
+        callback.from_user.user_id
+    )
+
     data = callback.data
 
-    # -----------------------------------------------------
+    # =====================================================
     # صفحه اول
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "home":
-        clear_state(user_id)
 
-        await show_home(callback.message)
+        user_states[user_id] = None
+
+        await show_home(
+            callback.message,
+            user_id,
+        )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # خریدهای قبلی
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "previous_orders":
-        clear_state(user_id)
+
+        user_states[user_id] = None
 
         await show_previous_orders(
             callback.message,
             user_id,
         )
+
         return
 
-    if data.startswith("order_history_"):
-        order_number = data[len("order_history_"):]
+    if data.startswith(
+        "order_history_"
+    ):
+
+        order_number = data[
+            len("order_history_"):
+        ]
 
         await show_order_history(
             callback.message,
             user_id,
             order_number,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # فروشگاه
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "shop":
-        clear_state(user_id)
 
-        await show_shop(callback.message)
-        return
+        user_states[user_id] = None
 
-    # -----------------------------------------------------
-    # دسته‌بندی
-    # -----------------------------------------------------
-
-    if data.startswith("category_"):
-        category = data[len("category_"):]
-
-        await show_category(
+        await show_shop(
             callback.message,
-            category,
+            user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # محصول
-    # -----------------------------------------------------
+    # =====================================================
+    # دسته‌بندی
+    # =====================================================
 
-    if data.startswith("product_"):
-        product_id = data[len("product_"):]
-        product = PRODUCTS.get(product_id)
+    if data.startswith(
+        "category_"
+    ):
+
+        category = data[
+            len("category_"):
+        ]
+
+        await send_screen_callback(
+            callback,
+            f"{CATEGORY_NAMES.get(category, '📦 محصولات')}\n\n"
+            "محصول موردنظر را انتخاب کنید:",
+            components=category_keyboard(
+                category
+            ),
+        )
+
+        return
+
+    # =====================================================
+    # محصول
+    # =====================================================
+
+    if data.startswith(
+        "product_"
+    ):
+
+        product_id = data[
+            len("product_"):
+        ]
+
+        product = PRODUCTS.get(
+            product_id
+        )
 
         if not product:
             return
 
-        category = product.get("category", "")
-
-        await callback.message.reply(
+        await send_screen_callback(
+            callback,
             f"🌿 {product['name']}\n\n"
             f"📦 {product['size']}\n"
             f"💰 {money(product['price'])}",
             components=product_keyboard(
-                product_id,
-                category,
+                product_id
             ),
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # افزودن
-    # -----------------------------------------------------
+    # =====================================================
 
     if data.startswith("add_"):
-        product_id = data[len("add_"):]
 
-        product = PRODUCTS.get(product_id)
+        product_id = data[
+            len("add_"):
+        ]
 
-        if not product:
+        if product_id not in PRODUCTS:
             return
 
-        if product.get("active", True) is False:
-            await callback.message.reply(
-                "❌ این محصول در حال حاضر موجود نیست."
-            )
-            return
-
-        carts.setdefault(user_id, {})
+        carts.setdefault(
+            user_id,
+            {},
+        )
 
         carts[user_id][product_id] = (
-            carts[user_id].get(product_id, 0) + 1
+            carts[user_id].get(
+                product_id,
+                0,
+            )
+            + 1
         )
 
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # افزایش
-    # -----------------------------------------------------
+    # =====================================================
 
     if data.startswith("plus_"):
-        product_id = data[len("plus_"):]
 
-        product = PRODUCTS.get(product_id)
+        product_id = data[
+            len("plus_"):
+        ]
 
-        if not product:
+        if product_id not in PRODUCTS:
             return
 
-        carts.setdefault(user_id, {})
+        carts.setdefault(
+            user_id,
+            {},
+        )
 
         carts[user_id][product_id] = (
-            carts[user_id].get(product_id, 0) + 1
+            carts[user_id].get(
+                product_id,
+                0,
+            )
+            + 1
         )
 
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # کاهش
-    # -----------------------------------------------------
+    # =====================================================
 
     if data.startswith("minus_"):
-        product_id = data[len("minus_"):]
 
-        if product_id in carts.get(user_id, {}):
+        product_id = data[
+            len("minus_"):
+        ]
+
+        if product_id in carts.get(
+            user_id,
+            {},
+        ):
+
             carts[user_id][product_id] -= 1
 
             if carts[user_id][product_id] <= 0:
-                del carts[user_id][product_id]
+
+                del carts[user_id][
+                    product_id
+                ]
 
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # سبد
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "cart":
+
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # شروع سفارش
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "start_order":
+
         await start_order(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # مشتری جدید
-    # -----------------------------------------------------
+    # =====================================================
+    # مشتری
+    # =====================================================
 
     if data == "new_customer":
+
         await start_new_customer(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # مشتری قدیمی
-    # -----------------------------------------------------
-
     if data == "old_customer":
+
         await show_customer_list(
             callback.message,
             user_id,
         )
+
         return
 
     if data == "customer_start":
+
         await show_customer_start(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # انتخاب مشتری
-    # -----------------------------------------------------
+    if data.startswith(
+        "select_customer_"
+    ):
 
-    if data.startswith("select_customer_"):
-        customer_id = data[len("select_customer_"):]
+        customer_id = data[
+            len("select_customer_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -1966,36 +2533,40 @@ async def on_callback(callback: CallbackQuery):
         await show_customer_profile(
             callback.message,
             customer_id,
+            user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # استفاده از مشتری
-    # -----------------------------------------------------
+    if data.startswith(
+        "use_customer_"
+    ):
 
-    if data.startswith("use_customer_"):
-        customer_id = data[len("use_customer_"):]
+        customer_id = data[
+            len("use_customer_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
 
-        active_customer[user_id] = customer_id
-
-        # تحویل قبلی مربوط به مشتری قبلی نباید باقی بماند.
-        current_delivery.pop(user_id, None)
+        active_customer[user_id] = (
+            customer_id
+        )
 
         await show_delivery(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # پروفایل
-    # -----------------------------------------------------
+    if data.startswith(
+        "profile_"
+    ):
 
-    if data.startswith("profile_"):
-        customer_id = data[len("profile_"):]
+        customer_id = data[
+            len("profile_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2003,15 +2574,22 @@ async def on_callback(callback: CallbackQuery):
         await show_customer_profile(
             callback.message,
             customer_id,
+            user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح مشتری
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("edit_customer_"):
-        customer_id = data[len("edit_customer_"):]
+    if data.startswith(
+        "edit_customer_"
+    ):
+
+        customer_id = data[
+            len("edit_customer_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2021,7 +2599,9 @@ async def on_callback(callback: CallbackQuery):
         keyboard.add(
             InlineKeyboardButton(
                 text="👤 اصلاح نام",
-                callback_data=f"edit_name_{customer_id}",
+                callback_data=(
+                    f"edit_name_{customer_id}"
+                ),
             ),
             row=1,
         )
@@ -2029,7 +2609,9 @@ async def on_callback(callback: CallbackQuery):
         keyboard.add(
             InlineKeyboardButton(
                 text="📱 اصلاح شماره",
-                callback_data=f"edit_phone_{customer_id}",
+                callback_data=(
+                    f"edit_phone_{customer_id}"
+                ),
             ),
             row=2,
         )
@@ -2037,19 +2619,28 @@ async def on_callback(callback: CallbackQuery):
         keyboard.add(
             InlineKeyboardButton(
                 text="⬅️ بازگشت",
-                callback_data=f"profile_{customer_id}",
+                callback_data=(
+                    f"profile_{customer_id}"
+                ),
             ),
             row=3,
         )
 
-        await callback.message.reply(
+        await send_screen_callback(
+            callback,
             "✏️ اصلاح مشخصات",
             components=keyboard,
         )
+
         return
 
-    if data.startswith("edit_name_"):
-        customer_id = data[len("edit_name_"):]
+    if data.startswith(
+        "edit_name_"
+    ):
+
+        customer_id = data[
+            len("edit_name_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2059,13 +2650,20 @@ async def on_callback(callback: CallbackQuery):
             "customer_id": customer_id,
         }
 
-        await callback.message.reply(
-            "👤 نام و نام خانوادگی جدید را وارد کنید:"
+        await send_screen_callback(
+            callback,
+            "👤 نام و نام خانوادگی جدید را وارد کنید:",
         )
+
         return
 
-    if data.startswith("edit_phone_"):
-        customer_id = data[len("edit_phone_"):]
+    if data.startswith(
+        "edit_phone_"
+    ):
+
+        customer_id = data[
+            len("edit_phone_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2075,41 +2673,62 @@ async def on_callback(callback: CallbackQuery):
             "customer_id": customer_id,
         }
 
-        await callback.message.reply(
-            "📱 شماره تلفن جدید را وارد کنید:"
+        await send_screen_callback(
+            callback,
+            "📱 شماره تلفن جدید را ارسال کنید:",
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # حذف مشتری
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("delete_customer_"):
-        customer_id = data[len("delete_customer_"):]
+    if data.startswith(
+        "delete_customer_"
+    ):
+
+        customer_id = data[
+            len("delete_customer_"):
+        ]
 
         DATA["customers"].pop(
             customer_id,
             None,
         )
 
-        if active_customer.get(user_id) == customer_id:
-            active_customer.pop(user_id, None)
+        if (
+            active_customer.get(
+                user_id
+            )
+            == customer_id
+        ):
 
-        current_delivery.pop(user_id, None)
+            active_customer.pop(
+                user_id,
+                None,
+            )
+
         save_data()
 
         await show_customer_list(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # آدرس‌ها از پروفایل
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("addresses_profile_"):
-        customer_id = data[len("addresses_profile_"):]
+    if data.startswith(
+        "addresses_profile_"
+    ):
+
+        customer_id = data[
+            len("addresses_profile_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2117,33 +2736,49 @@ async def on_callback(callback: CallbackQuery):
         await show_addresses(
             callback.message,
             customer_id,
-            back_callback=f"profile_{customer_id}",
+            back_callback=(
+                f"profile_{customer_id}"
+            ),
+            user_id=user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # آدرس‌ها از مسیر سفارش
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "addresses_order":
-        customer_id = active_customer.get(user_id)
+
+        customer_id = active_customer.get(
+            user_id
+        )
 
         if not customer_id:
+
             await show_customer_start(
                 callback.message,
                 user_id,
             )
+
             return
 
         await show_addresses(
             callback.message,
             customer_id,
             back_callback="delivery",
+            user_id=user_id,
         )
+
         return
 
-    if data.startswith("addresses_order_"):
-        customer_id = data[len("addresses_order_"):]
+    if data.startswith(
+        "addresses_order_"
+    ):
+
+        customer_id = data[
+            len("addresses_order_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2152,15 +2787,22 @@ async def on_callback(callback: CallbackQuery):
             callback.message,
             customer_id,
             back_callback="delivery",
+            user_id=user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # افزودن آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("add_address_"):
-        customer_id = data[len("add_address_"):]
+    if data.startswith(
+        "add_address_"
+    ):
+
+        customer_id = data[
+            len("add_address_"):
+        ]
 
         if customer_id not in DATA["customers"]:
             return
@@ -2170,115 +2812,190 @@ async def on_callback(callback: CallbackQuery):
             user_id,
             customer_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # انتخاب آدرس برای مشاهده / مدیریت
-    # -----------------------------------------------------
+    # =====================================================
+    # انتخاب آدرس
+    # =====================================================
 
-    if data.startswith("select_address_"):
-        payload = data[len("select_address_"):]
+    if data.startswith(
+        "select_address_"
+    ):
+
+        payload = data[
+            len("select_address_"):
+        ]
 
         try:
-            customer_id, index_text = payload.rsplit("_", 1)
-            index = int(index_text)
-        except (ValueError, TypeError):
+
+            customer_id, index_text = (
+                payload.rsplit("_", 1)
+            )
+
+            index = int(
+                index_text
+            )
+
+        except (
+            ValueError,
+            TypeError,
+        ):
+
             return
 
-        customer = DATA["customers"].get(customer_id)
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
             return
 
         address = addresses[index]
 
-        # تشخیص مسیر برگشت بر اساس state/session
-        if current_delivery.get(user_id):
-            back_callback = "delivery"
-        else:
-            back_callback = f"addresses_profile_{customer_id}"
-
-        await callback.message.reply(
+        await send_screen_callback(
+            callback,
             f"📍 {address.get('title', 'آدرس')}\n\n"
             f"🏠 {address.get('address', '')}",
             components=address_management_keyboard(
                 customer_id,
                 index,
-                back_callback,
             ),
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # انتخاب آدرس برای سفارش
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("use_address_"):
-        payload = data[len("use_address_"):]
+    if data.startswith(
+        "use_address_"
+    ):
+
+        payload = data[
+            len("use_address_"):
+        ]
 
         try:
-            customer_id, index_text = payload.rsplit("_", 1)
-            index = int(index_text)
-        except (ValueError, TypeError):
+
+            customer_id, index_text = (
+                payload.rsplit("_", 1)
+            )
+
+            index = int(
+                index_text
+            )
+
+        except (
+            ValueError,
+            TypeError,
+        ):
+
             return
 
-        customer = DATA["customers"].get(customer_id)
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
             return
 
         address = addresses[index]
 
-        active_customer[user_id] = customer_id
+        active_customer[user_id] = (
+            customer_id
+        )
 
         current_delivery[user_id] = {
-            "title": address.get("title", "آدرس"),
-            "address": address.get("address", ""),
+            "title": address.get(
+                "title",
+                "آدرس",
+            ),
+            "address": address.get(
+                "address",
+                "",
+            ),
             "fee": 0,
         }
 
-        # انتخاب آدرس = پایان مرحله آدرس
-        # و ورود مستقیم به مرحله روش ارسال
-        await callback.message.reply(
-            "✅ این آدرس برای سفارش انتخاب شد.\n\n"
-            f"📍 {address.get('title', 'آدرس')}\n"
-            f"🏠 {address.get('address', '')}\n\n"
-            "🚚 حالا روش ارسال را انتخاب کنید:",
-            components=shipping_keyboard(),
+        await show_shipping_or_invoice(
+            callback.message,
+            user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("edit_address_"):
-        payload = data[len("edit_address_"):]
+    if data.startswith(
+        "edit_address_"
+    ):
+
+        payload = data[
+            len("edit_address_"):
+        ]
 
         try:
-            customer_id, index_text = payload.rsplit("_", 1)
-            index = int(index_text)
-        except (ValueError, TypeError):
+
+            customer_id, index_text = (
+                payload.rsplit("_", 1)
+            )
+
+            index = int(
+                index_text
+            )
+
+        except (
+            ValueError,
+            TypeError,
+        ):
+
             return
 
-        customer = DATA["customers"].get(customer_id)
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
             return
 
         user_states[user_id] = {
@@ -2287,135 +3004,168 @@ async def on_callback(callback: CallbackQuery):
             "index": index,
         }
 
-        await callback.message.reply(
-            "✏️ نام این آدرس را وارد کنید:"
+        await send_screen_callback(
+            callback,
+            "✏️ نام این آدرس را وارد کنید:",
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # حذف آدرس
-    # -----------------------------------------------------
+    # =====================================================
 
-    if data.startswith("delete_address_"):
-        payload = data[len("delete_address_"):]
+    if data.startswith(
+        "delete_address_"
+    ):
+
+        payload = data[
+            len("delete_address_"):
+        ]
 
         try:
-            customer_id, index_text = payload.rsplit("_", 1)
-            index = int(index_text)
-        except (ValueError, TypeError):
+
+            customer_id, index_text = (
+                payload.rsplit("_", 1)
+            )
+
+            index = int(
+                index_text
+            )
+
+        except (
+            ValueError,
+            TypeError,
+        ):
+
             return
 
-        customer = DATA["customers"].get(customer_id)
+        customer = DATA["customers"].get(
+            customer_id
+        )
 
         if not customer:
             return
 
-        addresses = customer.get("addresses", [])
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
-        if index < 0 or index >= len(addresses):
+        if (
+            index < 0
+            or index >= len(addresses)
+        ):
+
             return
 
         del addresses[index]
-
-        # اگر آدرس حذف‌شده همان آدرس فعال بود،
-        # تحویل فعلی هم پاک شود.
-        if (
-            active_customer.get(user_id) == customer_id
-            and current_delivery.get(user_id, {}).get("address")
-        ):
-            current_delivery.pop(user_id, None)
 
         save_data()
 
         await show_addresses(
             callback.message,
             customer_id,
-            back_callback=f"profile_{customer_id}",
+            back_callback=(
+                f"profile_{customer_id}"
+            ),
+            user_id=user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # تحویل
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "delivery":
+
         await show_delivery(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # تحویل رایگان
-    # -----------------------------------------------------
-
     if data == "free_delivery":
-        await callback.message.reply(
+
+        await send_screen_callback(
+            callback,
             "📍 تحویل رایگان / حضوری را انتخاب کنید:",
             components=free_delivery_keyboard(),
         )
+
         return
 
-    # -----------------------------------------------------
-    # تحویل حضوری
-    # -----------------------------------------------------
-
     if data == "delivery_pickup":
+
         current_delivery[user_id] = {
             "title": "تحویل حضوری",
             "address": "",
             "fee": 0,
-            "shipping_method": "",
         }
 
         await show_final_invoice(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # تحویل هیأت
-    # -----------------------------------------------------
-
     if data == "delivery_heyat":
+
         current_delivery[user_id] = {
             "title": "تحویل در هیأت امنا",
             "address": "",
             "fee": 0,
-            "shipping_method": "",
         }
 
         await show_final_invoice(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # آدرس‌های ذخیره‌شده
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "delivery_saved":
-        customer_id = active_customer.get(user_id)
+
+        customer_id = active_customer.get(
+            user_id
+        )
 
         if not customer_id:
+
             await show_customer_start(
                 callback.message,
                 user_id,
             )
+
             return
 
-        customer = DATA["customers"].get(customer_id, {})
-        addresses = customer.get("addresses", [])
+        customer = DATA["customers"].get(
+            customer_id,
+            {},
+        )
+
+        addresses = customer.get(
+            "addresses",
+            [],
+        )
 
         if not addresses:
+
             keyboard = InlineKeyboardMarkup()
 
             keyboard.add(
                 InlineKeyboardButton(
                     text="➕ افزودن آدرس",
-                    callback_data=f"add_address_{customer_id}",
+                    callback_data=(
+                        f"add_address_{customer_id}"
+                    ),
                 ),
                 row=1,
             )
@@ -2428,32 +3178,41 @@ async def on_callback(callback: CallbackQuery):
                 row=2,
             )
 
-            await callback.message.reply(
+            await send_screen_callback(
+                callback,
                 "📍 آدرس‌های من\n\n"
                 "هنوز آدرسی برای شما ثبت نشده است.",
                 components=keyboard,
             )
+
             return
 
         await show_addresses(
             callback.message,
             customer_id,
             back_callback="delivery",
+            user_id=user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # افزودن آدرس جدید از سفارش
-    # -----------------------------------------------------
+    # =====================================================
+    # آدرس جدید از مسیر سفارش
+    # =====================================================
 
     if data == "delivery_new_address":
-        customer_id = active_customer.get(user_id)
+
+        customer_id = active_customer.get(
+            user_id
+        )
 
         if not customer_id:
+
             await show_customer_start(
                 callback.message,
                 user_id,
             )
+
             return
 
         await start_new_address(
@@ -2461,83 +3220,138 @@ async def on_callback(callback: CallbackQuery):
             user_id,
             customer_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # ارسال الوپیک
-    # -----------------------------------------------------
+    # =====================================================
+    # ارسال
+    # =====================================================
 
     if data == "shipping_alopik":
-        delivery = current_delivery.setdefault(
+
+        current_delivery.setdefault(
             user_id,
             {},
         )
 
-        delivery["shipping_method"] = "الوپیک"
+        current_delivery[user_id][
+            "shipping_method"
+        ] = "الوپیک"
 
-        # فعلاً مبلغ ارسال صفر است
-        delivery["fee"] = 0
+        current_delivery[user_id][
+            "fee"
+        ] = 0
 
         await show_final_invoice(
             callback.message,
             user_id,
         )
-        return
 
-    # -----------------------------------------------------
-    # ارسال اسنپ‌باکس
-    # -----------------------------------------------------
+        return
 
     if data == "shipping_snapp":
-        delivery = current_delivery.setdefault(
+
+        current_delivery.setdefault(
             user_id,
             {},
         )
 
-        delivery["shipping_method"] = "اسنپ‌باکس"
+        current_delivery[user_id][
+            "shipping_method"
+        ] = "اسنپ‌باکس"
 
-        # فعلاً مبلغ ارسال صفر است
-        delivery["fee"] = 0
+        current_delivery[user_id][
+            "fee"
+        ] = 0
 
         await show_final_invoice(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # اصلاح سبد
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "edit_cart":
+
         await show_cart(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
+    # =====================================================
     # پرداخت
-    # -----------------------------------------------------
+    # =====================================================
 
     if data == "payment":
+
         await create_order(
             callback.message,
             user_id,
         )
+
         return
 
-    # -----------------------------------------------------
-    # لغو خرید
-    # -----------------------------------------------------
+    # =====================================================
+    # لغو
+    # =====================================================
 
     if data == "cancel_cart":
-        carts.pop(user_id, None)
-        current_delivery.pop(user_id, None)
-        user_states.pop(user_id, None)
 
-        await show_home(callback.message)
+        carts.pop(
+            user_id,
+            None,
+        )
+
+        current_delivery.pop(
+            user_id,
+            None,
+        )
+
+        user_states[user_id] = None
+
+        await show_home(
+            callback.message,
+            user_id,
+        )
+
         return
+
+
+# =========================================================
+# انتخاب روش ارسال برای آدرس
+# =========================================================
+
+async def show_shipping_or_invoice(
+    message,
+    user_id,
+):
+
+    delivery = current_delivery.get(
+        user_id,
+        {},
+    )
+
+    if delivery.get("address"):
+
+        await send_screen(
+            message,
+            "🚚 روش ارسال را انتخاب کنید:",
+            components=shipping_keyboard(),
+            user_id=user_id,
+        )
+
+        return
+
+    await show_final_invoice(
+        message,
+        user_id,
+    )
 
 
 # =========================================================
@@ -2546,6 +3360,7 @@ async def on_callback(callback: CallbackQuery):
 
 @bot.event
 async def on_ready():
+
     print(
         "=== BALE BOT CONNECTED ===",
         flush=True,
