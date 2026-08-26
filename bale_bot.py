@@ -1769,13 +1769,11 @@ async def send_receipt_to_admin(
 
             try:
 
-                await bot.send_photo(
-                    chat_id=int(admin_id),
-                    photo=InputFile(
-                        file_id
-                    ),
-                    caption=caption,
-                )
+              await bot.send_photo(
+                  chat_id=int(admin_id),
+                  photo=file_id,
+                  caption=caption,
+)
 
                 logging.info(
                     f"رسید سفارش "
