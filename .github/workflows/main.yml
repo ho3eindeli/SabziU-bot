@@ -51,6 +51,30 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Test connection to Bale
+        run: |
+          echo "Testing connection to tapi.bale.ai..."
+
+          for i in 1 2 3 4 5
+          do
+            echo "Connection attempt $i..."
+
+            if curl -I --connect-timeout 15 --max-time 30 https://tapi.bale.ai
+            then
+              echo "Bale server is reachable."
+              break
+            fi
+
+            if [ "$i" -eq 5 ]
+            then
+              echo "Bale server could not be reached after 5 attempts."
+              exit 1
+            fi
+
+            echo "Connection failed. Waiting 10 seconds before retry..."
+            sleep 10
+          done
+
       - name: Run Bale bot
         run: |
-         python -u bale_bot.py
+          python -u bale_bot.py
