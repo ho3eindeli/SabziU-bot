@@ -1775,7 +1775,7 @@ async def send_receipt_to_admin(
                   caption=caption,
 )
 
-                logging.info(
+                  logging.info(
                     f"رسید سفارش "
                     f"#{order_number} "
                     f"به مدیر {admin_id} ارسال شد."
