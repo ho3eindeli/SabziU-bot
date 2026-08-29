@@ -1698,101 +1698,69 @@ async def send_receipt_to_admin(
     user_id,
     order,
 ):
+    """
+    رسید واقعی کاربر را برای مدیر ارسال می‌کند.
 
-    photo = getattr(
-        message,
-        "photo",
-        None,
+    در SDK بله، عکس‌های دریافتی در message.photos قرار دارند.
+    برای جلوگیری از مشکل file_id/InputFile، ابتدا اطلاعات سفارش
+    برای مدیر ارسال می‌شود و سپس خود پیام عکس forward می‌شود.
+    """
+
+    photos = getattr(message, "photos", None)
+
+    if not photos:
+        logging.error(
+            "رسید دریافت نشد: message.photos خالی است."
+        )
+        return False
+
+    caption = (
+        "📸 رسید پرداخت دریافت شد.\n\n"
+        f"🔢 سفارش: #{order_number}\n"
+        f"🆔 Bale ID: {user_id}"
     )
 
-    if not photo:
+    if order:
+        caption += (
+            f"\n👤 مشتری: {order.get('customer_name', '')}"
+            f"\n📱 تلفن: {order.get('phone', '')}"
+            f"\n💰 مبلغ: {money(order.get('total', 0))}"
+        )
+
+    if not ADMIN_CHAT_IDS:
         logging.error(
-            "پیام رسید فاقد photo است."
+            "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
         )
-        return
+        return False
 
-    try:
+    success_count = 0
 
-        photo_file = photo
-
-        if isinstance(
-            photo,
-            (list, tuple),
-        ):
-            photo_file = photo[-1]
-
-        file_id = getattr(
-            photo_file,
-            "file_id",
-            None,
-        )
-
-        # بعضی نسخه‌های Bale ممکن است photo
-        # را به شکل آبجکت متفاوت برگردانند.
-        if not file_id:
-
-            if isinstance(
-                photo,
-                dict,
-            ):
-                file_id = photo.get(
-                    "file_id"
-                )
-
-        if not file_id:
-
-            logging.error(
-                f"file_id عکس پیدا نشد. "
-                f"type={type(photo)}"
+    for admin_id in ADMIN_CHAT_IDS:
+        try:
+            # ابتدا مشخصات رسید را به صورت متن می‌فرستیم.
+            await bot.send_message(
+                chat_id=int(admin_id),
+                text=caption,
             )
 
-            return
-
-        caption = (
-            "📸 رسید پرداخت دریافت شد.\n\n"
-            f"🔢 سفارش: #{order_number}\n"
-            f"🆔 مشتری: {user_id}"
-        )
-
-        if order:
-
-            caption += (
-                f"\n👤 مشتری: "
-                f"{order.get('customer_name', '')}"
-                f"\n📱 تلفن: "
-                f"{order.get('phone', '')}"
-                f"\n💰 مبلغ: "
-                f"{money(order.get('total', 0))}"
+            # سپس خود عکس ارسالی کاربر را بدون دانلود/آپلود مجدد
+            # مستقیماً برای مدیر forward می‌کنیم.
+            await message.forward(
+                chat_id=int(admin_id)
             )
 
-        for admin_id in ADMIN_CHAT_IDS:
+            success_count += 1
 
-            try:
+            logging.info(
+                f"رسید سفارش #{order_number} با موفقیت به مدیر {admin_id} ارسال شد."
+            )
 
-              await bot.send_photo(
-                  chat_id=int(admin_id),
-                  photo=file_id,
-                  caption=caption,
-)
+        except Exception as e:
+            logging.exception(
+                f"ارسال رسید سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
+            )
 
-                  logging.info(
-                    f"رسید سفارش "
-                    f"#{order_number} "
-                    f"به مدیر {admin_id} ارسال شد."
-                )
-
-            except Exception as e:
-
-                logging.error(
-                    f"ارسال عکس رسید به "
-                    f"{admin_id} ناموفق بود: {e}"
-                )
-
-    except Exception as e:
-
-        logging.error(
-            f"خطای کلی ارسال رسید: {e}"
-        )
+    return success_count > 0
 
 
 # =========================================================
@@ -2087,43 +2055,64 @@ async def on_message(
             "order_number"
         )
 
-        photo = getattr(
-    message,
-    "photos",
-    None,
-)
+        # در python-bale-bot نام فیلد عکس "photos" است، نه "photo".
+        # هر عکس ارسالی در این مرحله باید همین‌جا پردازش شود.
+        photos = getattr(
+            message,
+            "photos",
+            None,
+        )
 
-if photo:
-    order = find_order(
-        user_id,
-        order_number,
-    )
+        if photos:
 
-    if order:
-        order["receipt"] = "ارسال شد"
-        order["payment_status"] = "رسید ارسال شد"
-        save_data()
+            order = find_order(
+                user_id,
+                order_number,
+            )
 
-    await send_receipt_to_admin(
-        message,
-        order_number,
-        user_id,
-        order,
-    )
+            if not order:
+                logging.error(
+                    f"سفارش #{order_number} برای کاربر {user_id} پیدا نشد."
+                )
 
-    user_states[user_id] = None
+                await send_screen(
+                    message,
+                    "❌ سفارش پیدا نشد.\n\n"
+                    "لطفاً با پشتیبانی تماس بگیرید.",
+                    user_id=user_id,
+                )
+                return
 
-    await send_screen(
-        message,
-        "✅ رسید پرداخت شما دریافت شد.\n\n"
-        f"شماره سفارش: #{order_number}\n\n"
-        "رسید برای مدیریت ارسال شد و "
-        "پس از بررسی پرداخت، سفارش شما "
-        "آماده خواهد شد. 🌿",
-        user_id=user_id,
-    )
+            sent = await send_receipt_to_admin(
+                message,
+                order_number,
+                user_id,
+                order,
+            )
 
-    return
+            if sent:
+                order["receipt"] = "ارسال شد"
+                order["payment_status"] = "رسید ارسال شد"
+                save_data()
+
+                user_states[user_id] = None
+
+                await send_screen(
+                    message,
+                    "✅ رسید پرداخت شما دریافت شد.\n\n"
+                    f"شماره سفارش: #{order_number}\n\n"
+                    "رسید برای مدیریت ارسال شد و "
+                    "پس از بررسی پرداخت، سفارش شما "
+                    "آماده خواهد شد. 🌿",
+                    user_id=user_id,
+                )
+            else:
+                await send_screen(
+                    message,
+                    "⚠️ عکس رسید دریافت شد، اما ارسال آن برای مدیریت ناموفق بود.\n\n"
+                    "لطفاً چند لحظه بعد دوباره همین رسید را ارسال کنید.",
+                    user_id=user_id,
+                )
 
             return
 
