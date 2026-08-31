@@ -143,8 +143,11 @@ async def send_screen(
     user_id=None,
 ):
     """
-    هر صفحه فقط یک پیام فعال از ربات دارد.
+    مدیریت صفحه‌های ربات.
+
+    پیام قبلی ربات در صورت امکان حذف می‌شود.
     پیام کاربر هیچ‌وقت حذف نمی‌شود.
+    اگر reply شکست خورد، ارسال مستقیم انجام می‌شود.
     """
 
     if user_id is None:
@@ -152,7 +155,9 @@ async def send_screen(
 
     old_message = last_bot_message.get(user_id)
 
-    # اگر پیام قبلی وجود دارد حذف شود
+    # -----------------------------------------------------
+    # حذف پیام قبلی ربات
+    # -----------------------------------------------------
     if old_message:
         try:
             await old_message.delete()
@@ -161,8 +166,14 @@ async def send_screen(
                 f"حذف پیام قبلی ناموفق بود: {e}"
             )
 
-        last_bot_message.pop(user_id, None)
+        last_bot_message.pop(
+            user_id,
+            None,
+        )
 
+    # -----------------------------------------------------
+    # ارسال پیام جدید
+    # -----------------------------------------------------
     try:
         new_message = await message.reply(
             text,
@@ -178,23 +189,26 @@ async def send_screen(
             f"ارسال صفحه ناموفق بود: {e}"
         )
 
-        try:
-            new_message = await bot.send_message(
-                chat_id=int(user_id),
-                text=text,
-                components=components,
-            )
+    # -----------------------------------------------------
+    # تلاش دوم: ارسال مستقیم
+    # -----------------------------------------------------
+    try:
+        new_message = await bot.send_message(
+            chat_id=int(user_id),
+            text=text,
+            components=components,
+        )
 
-            last_bot_message[user_id] = new_message
+        last_bot_message[user_id] = new_message
 
-            return new_message
+        return new_message
 
-        except Exception as e2:
-            logging.error(
-                f"ارسال مستقیم صفحه ناموفق بود: {e2}"
-            )
+    except Exception as e:
+        logging.error(
+            f"ارسال مستقیم صفحه ناموفق بود: {e}"
+        )
 
-            return None
+        return None
 
 
 async def send_screen_callback(
@@ -214,20 +228,25 @@ async def send_screen_callback(
 
     old_message = last_bot_message.get(user_id)
 
-    # اگر همان پیام callback است،
-    # ابتدا از حافظه حذف می‌شود تا دوباره حذف نشود.
+    # -----------------------------------------------------
+    # اگر پیام قبلی همان پیام callback است،
+    # دوباره حذفش نکن
+    # -----------------------------------------------------
     if old_message is callback_message:
+
         last_bot_message.pop(
             user_id,
             None,
         )
 
     elif old_message:
+
         try:
             await old_message.delete()
+
         except Exception as e:
             logging.debug(
-                f"حذف پیام قبلی ناموفق بود: {e}"
+                f"حذف پیام قبلی callback ناموفق بود: {e}"
             )
 
         last_bot_message.pop(
@@ -235,13 +254,22 @@ async def send_screen_callback(
             None,
         )
 
+    # -----------------------------------------------------
+    # پاسخ به callback
+    # -----------------------------------------------------
     try:
+
         if hasattr(callback, "answer"):
             await callback.answer()
+
     except Exception:
         pass
 
+    # -----------------------------------------------------
+    # ارسال صفحه جدید
+    # -----------------------------------------------------
     try:
+
         new_message = await callback_message.reply(
             text,
             components=components,
@@ -252,31 +280,43 @@ async def send_screen_callback(
         return new_message
 
     except Exception as e:
+
         logging.error(
             f"ارسال صفحه callback ناموفق بود: {e}"
         )
 
-        try:
-            new_message = await bot.send_message(
-                chat_id=int(user_id),
-                text=text,
-                components=components,
-            )
+    # -----------------------------------------------------
+    # تلاش دوم
+    # -----------------------------------------------------
+    try:
 
-            last_bot_message[user_id] = new_message
+        new_message = await bot.send_message(
+            chat_id=int(user_id),
+            text=text,
+            components=components,
+        )
 
-            return new_message
+        last_bot_message[user_id] = new_message
 
-        except Exception as e2:
-            logging.error(
-                f"ارسال مستقیم callback ناموفق بود: {e2}"
-            )
+        return new_message
 
-            return None
+    except Exception as e:
+
+        logging.error(
+            f"ارسال مستقیم callback ناموفق بود: {e}"
+        )
+
+        return None
 
 
 async def clear_user_screen(user_id):
-    await delete_last_bot_message(user_id)
+    try:
+        await delete_last_bot_message(user_id)
+
+    except Exception as e:
+        logging.debug(
+            f"پاک کردن صفحه کاربر ناموفق بود: {e}"
+        )
 
 
 # =========================================================
