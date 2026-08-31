@@ -36,7 +36,7 @@ jobs:
 
     env:
       BALE_BOT_TOKEN: ${{ secrets.BALE_BOT_TOKEN }}
-      BALE_ADMIN_CHAT_IDS: ${{ secrets.BALE_ADMIN_CHAT_ID }}
+      BALE_ADMIN_CHAT_IDS: ${{ secrets.BALE_ADMIN_CHAT_IDS }}
 
     steps:
       - name: Checkout repository
