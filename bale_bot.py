@@ -1786,28 +1786,23 @@ async def send_receipt_to_admin(
             # -------------------------------------------------
             # ارسال خود عکس رسید
             # -------------------------------------------------
-            photo = photos[-1]
+          photo = photos[-1]
 
-            file_id = getattr(
-                photo,
-                "file_id",
-                None,
-            )
+try:
+    await bot.send_photo(
+        chat_id=int(admin_id),
+        photo=InputFile(
+            photo.file_id
+        ),
+        caption=f"📸 رسید سفارش #{order_number}",
+    )
 
-            if not file_id:
-                logging.error(
-                    f"برای رسید سفارش #{order_number} "
-                    f"file_id پیدا نشد."
-                )
-                continue
-
-            await bot.send_photo(
-                chat_id=int(admin_id),
-                photo=file_id,
-                caption=(
-                    f"📸 رسید سفارش #{order_number}"
-                ),
-            )
+except Exception as photo_error:
+    logging.exception(
+        f"ارسال عکس رسید سفارش #{order_number} "
+        f"به مدیر {admin_id} ناموفق بود: {photo_error}"
+    )
+    continue
 
             success_count += 1
 
