@@ -1739,11 +1739,10 @@ async def send_receipt_to_admin(
     order,
 ):
     """
-    رسید واقعی کاربر را برای مدیر ارسال می‌کند.
+    ارسال رسید پرداخت برای مدیر.
 
-    در SDK بله، عکس‌های دریافتی در message.photos قرار دارند.
-    برای جلوگیری از مشکل file_id/InputFile، ابتدا اطلاعات سفارش
-    برای مدیر ارسال می‌شود و سپس خود پیام عکس forward می‌شود.
+    ابتدا اطلاعات سفارش ارسال می‌شود،
+    سپس عکس رسید با همان message به مدیر ارسال می‌شود.
     """
 
     photos = getattr(message, "photos", None)
@@ -1751,6 +1750,12 @@ async def send_receipt_to_admin(
     if not photos:
         logging.error(
             "رسید دریافت نشد: message.photos خالی است."
+        )
+        return False
+
+    if not ADMIN_CHAT_IDS:
+        logging.error(
+            "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
         )
         return False
 
@@ -1767,41 +1772,58 @@ async def send_receipt_to_admin(
             f"\n💰 مبلغ: {money(order.get('total', 0))}"
         )
 
-    if not ADMIN_CHAT_IDS:
-        logging.error(
-            "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
-        )
-        return False
-
     success_count = 0
 
     for admin_id in ADMIN_CHAT_IDS:
+
         try:
-            # ابتدا مشخصات رسید را به صورت متن می‌فرستیم.
+            # ارسال مشخصات سفارش برای مدیر
             await bot.send_message(
                 chat_id=int(admin_id),
                 text=caption,
             )
 
-            # سپس خود عکس ارسالی کاربر را بدون دانلود/آپلود مجدد
-            # مستقیماً برای مدیر forward می‌کنیم.
-            await message.forward(
-                chat_id=int(admin_id)
+            # -------------------------------------------------
+            # ارسال خود عکس رسید
+            # -------------------------------------------------
+            photo = photos[-1]
+
+            file_id = getattr(
+                photo,
+                "file_id",
+                None,
+            )
+
+            if not file_id:
+                logging.error(
+                    f"برای رسید سفارش #{order_number} "
+                    f"file_id پیدا نشد."
+                )
+                continue
+
+            await bot.send_photo(
+                chat_id=int(admin_id),
+                photo=file_id,
+                caption=(
+                    f"📸 رسید سفارش #{order_number}"
+                ),
             )
 
             success_count += 1
 
             logging.info(
-                f"رسید سفارش #{order_number} با موفقیت به مدیر {admin_id} ارسال شد."
+                f"رسید سفارش #{order_number} "
+                f"با موفقیت به مدیر {admin_id} ارسال شد."
             )
 
         except Exception as e:
+
             logging.exception(
-                f"ارسال رسید سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
+                f"ارسال رسید سفارش #{order_number} "
+                f"به مدیر {admin_id} ناموفق بود: {e}"
             )
 
     return success_count > 0
-
 
 # =========================================================
 # ثبت سفارش
