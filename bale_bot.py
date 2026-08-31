@@ -143,11 +143,8 @@ async def send_screen(
     user_id=None,
 ):
     """
-    مدیریت صفحه‌های ربات.
-
-    پیام قبلی ربات در صورت امکان حذف می‌شود.
+    هر صفحه فقط یک پیام فعال از ربات دارد.
     پیام کاربر هیچ‌وقت حذف نمی‌شود.
-    اگر reply شکست خورد، ارسال مستقیم انجام می‌شود.
     """
 
     if user_id is None:
@@ -155,9 +152,7 @@ async def send_screen(
 
     old_message = last_bot_message.get(user_id)
 
-    # -----------------------------------------------------
-    # حذف پیام قبلی ربات
-    # -----------------------------------------------------
+    # اگر پیام قبلی وجود دارد حذف شود
     if old_message:
         try:
             await old_message.delete()
@@ -166,32 +161,8 @@ async def send_screen(
                 f"حذف پیام قبلی ناموفق بود: {e}"
             )
 
-        last_bot_message.pop(
-            user_id,
-            None,
-        )
+        last_bot_message.pop(user_id, None)
 
-    # -----------------------------------------------------
-    # ارسال پیام جدید
-    # -----------------------------------------------------
-    try:
-        new_message = await message.reply(
-            text,
-            components=components,
-        )
-
-        last_bot_message[user_id] = new_message
-
-        return new_message
-
-    except Exception as e:
-        logging.error(
-            f"ارسال صفحه ناموفق بود: {e}"
-        )
-
-    # -----------------------------------------------------
-    # تلاش دوم: ارسال مستقیم
-    # -----------------------------------------------------
     try:
         new_message = await bot.send_message(
             chat_id=int(user_id),
@@ -200,14 +171,12 @@ async def send_screen(
         )
 
         last_bot_message[user_id] = new_message
-
         return new_message
 
     except Exception as e:
         logging.error(
-            f"ارسال مستقیم صفحه ناموفق بود: {e}"
+            f"ارسال صفحه ناموفق بود: {e}"
         )
-
         return None
 
 
@@ -228,25 +197,20 @@ async def send_screen_callback(
 
     old_message = last_bot_message.get(user_id)
 
-    # -----------------------------------------------------
-    # اگر پیام قبلی همان پیام callback است،
-    # دوباره حذفش نکن
-    # -----------------------------------------------------
+    # اگر همان پیام callback است،
+    # ابتدا از حافظه حذف می‌شود تا دوباره حذف نشود.
     if old_message is callback_message:
-
         last_bot_message.pop(
             user_id,
             None,
         )
 
     elif old_message:
-
         try:
             await old_message.delete()
-
         except Exception as e:
             logging.debug(
-                f"حذف پیام قبلی callback ناموفق بود: {e}"
+                f"حذف پیام قبلی ناموفق بود: {e}"
             )
 
         last_bot_message.pop(
@@ -254,42 +218,13 @@ async def send_screen_callback(
             None,
         )
 
-    # -----------------------------------------------------
-    # پاسخ به callback
-    # -----------------------------------------------------
     try:
-
         if hasattr(callback, "answer"):
             await callback.answer()
-
     except Exception:
         pass
 
-    # -----------------------------------------------------
-    # ارسال صفحه جدید
-    # -----------------------------------------------------
     try:
-
-        new_message = await callback_message.reply(
-            text,
-            components=components,
-        )
-
-        last_bot_message[user_id] = new_message
-
-        return new_message
-
-    except Exception as e:
-
-        logging.error(
-            f"ارسال صفحه callback ناموفق بود: {e}"
-        )
-
-    # -----------------------------------------------------
-    # تلاش دوم
-    # -----------------------------------------------------
-    try:
-
         new_message = await bot.send_message(
             chat_id=int(user_id),
             text=text,
@@ -297,26 +232,17 @@ async def send_screen_callback(
         )
 
         last_bot_message[user_id] = new_message
-
         return new_message
 
     except Exception as e:
-
         logging.error(
-            f"ارسال مستقیم callback ناموفق بود: {e}"
+            f"ارسال صفحه callback ناموفق بود: {e}"
         )
-
         return None
 
 
 async def clear_user_screen(user_id):
-    try:
-        await delete_last_bot_message(user_id)
-
-    except Exception as e:
-        logging.debug(
-            f"پاک کردن صفحه کاربر ناموفق بود: {e}"
-        )
+    await delete_last_bot_message(user_id)
 
 
 # =========================================================
@@ -1738,12 +1664,7 @@ async def send_receipt_to_admin(
     user_id,
     order,
 ):
-    """
-    ارسال رسید پرداخت برای مدیر.
-
-    ابتدا اطلاعات سفارش ارسال می‌شود،
-    سپس عکس رسید با همان message به مدیر ارسال می‌شود.
-    """
+    """ارسال عکس رسید دریافتی برای مدیران."""
 
     photos = getattr(message, "photos", None)
 
@@ -1772,53 +1693,40 @@ async def send_receipt_to_admin(
             f"\n💰 مبلغ: {money(order.get('total', 0))}"
         )
 
+    # در نسخه فعلی python-bale-bot، send_photo فقط InputFile می‌پذیرد.
+    # file_id عکس موجود روی سرور بله را مستقیماً داخل InputFile می‌گذاریم.
+    photo = photos[-1]
+    file_id = getattr(photo, "file_id", None)
+
+    if not file_id:
+        logging.error(
+            f"برای رسید سفارش #{order_number} file_id پیدا نشد."
+        )
+        return False
+
     success_count = 0
 
     for admin_id in ADMIN_CHAT_IDS:
-
         try:
-            # ارسال مشخصات سفارش برای مدیر
-            await bot.send_message(
+            await bot.send_photo(
                 chat_id=int(admin_id),
-                text=caption,
+                photo=InputFile(file_id),
+                caption=caption,
             )
-
-            # -------------------------------------------------
-            # ارسال خود عکس رسید
-            # -------------------------------------------------
-          photo = photos[-1]
-
-try:
-    await bot.send_photo(
-        chat_id=int(admin_id),
-        photo=InputFile(
-            photo.file_id
-        ),
-        caption=f"📸 رسید سفارش #{order_number}",
-    )
-
-except Exception as photo_error:
-    logging.exception(
-        f"ارسال عکس رسید سفارش #{order_number} "
-        f"به مدیر {admin_id} ناموفق بود: {photo_error}"
-    )
-    continue
 
             success_count += 1
 
             logging.info(
-                f"رسید سفارش #{order_number} "
-                f"با موفقیت به مدیر {admin_id} ارسال شد."
+                f"رسید سفارش #{order_number} با موفقیت به مدیر {admin_id} ارسال شد."
             )
 
         except Exception as e:
-
             logging.exception(
-                f"ارسال رسید سفارش #{order_number} "
-                f"به مدیر {admin_id} ناموفق بود: {e}"
+                f"ارسال رسید سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
             )
 
     return success_count > 0
+
 
 # =========================================================
 # ثبت سفارش
