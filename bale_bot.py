@@ -94,9 +94,13 @@ active_customer = {}
 carts = {}
 current_delivery = {}
 
-# پیام فعلی ربات برای هر کاربر
+# آخرین پیام صفحه‌ای ربات برای هر کاربر
 last_bot_message = {}
 
+
+# =========================================================
+# ذخیره اطلاعات
+# =========================================================
 
 def save_data():
     temp = STATE_FILE + ".tmp"
@@ -117,7 +121,7 @@ def save_data():
 
 
 # =========================================================
-# مدیریت پیام‌های قبلی
+# مدیریت صفحه‌های ربات
 # =========================================================
 
 async def delete_last_bot_message(user_id):
@@ -144,24 +148,13 @@ async def send_screen(
 ):
     """
     هر صفحه فقط یک پیام فعال از ربات دارد.
-    پیام کاربر هیچ‌وقت حذف نمی‌شود.
+    پیام‌های کاربر هرگز حذف نمی‌شوند.
     """
 
     if user_id is None:
         user_id = str(message.author.user_id)
 
-    old_message = last_bot_message.get(user_id)
-
-    # اگر پیام قبلی وجود دارد حذف شود
-    if old_message:
-        try:
-            await old_message.delete()
-        except Exception as e:
-            logging.debug(
-                f"حذف پیام قبلی ناموفق بود: {e}"
-            )
-
-        last_bot_message.pop(user_id, None)
+    await delete_last_bot_message(user_id)
 
     try:
         new_message = await bot.send_message(
@@ -171,12 +164,14 @@ async def send_screen(
         )
 
         last_bot_message[user_id] = new_message
+
         return new_message
 
     except Exception as e:
-        logging.error(
+        logging.exception(
             f"ارسال صفحه ناموفق بود: {e}"
         )
+
         return None
 
 
@@ -186,7 +181,7 @@ async def send_screen_callback(
     components=None,
 ):
     """
-    صفحه جدید بعد از کلیک روی دکمه.
+    نمایش صفحه جدید بعد از کلیک روی دکمه.
     """
 
     user_id = str(
@@ -194,20 +189,22 @@ async def send_screen_callback(
     )
 
     callback_message = callback.message
-
     old_message = last_bot_message.get(user_id)
 
-    # اگر همان پیام callback است،
-    # ابتدا از حافظه حذف می‌شود تا دوباره حذف نشود.
+    # اگر پیام فعلی همان پیام callback است،
+    # فقط از حافظه حذفش می‌کنیم.
     if old_message is callback_message:
+
         last_bot_message.pop(
             user_id,
             None,
         )
 
     elif old_message:
+
         try:
             await old_message.delete()
+
         except Exception as e:
             logging.debug(
                 f"حذف پیام قبلی ناموفق بود: {e}"
@@ -221,6 +218,7 @@ async def send_screen_callback(
     try:
         if hasattr(callback, "answer"):
             await callback.answer()
+
     except Exception:
         pass
 
@@ -232,17 +230,15 @@ async def send_screen_callback(
         )
 
         last_bot_message[user_id] = new_message
+
         return new_message
 
     except Exception as e:
-        logging.error(
+        logging.exception(
             f"ارسال صفحه callback ناموفق بود: {e}"
         )
+
         return None
-
-
-async def clear_user_screen(user_id):
-    await delete_last_bot_message(user_id)
 
 
 # =========================================================
@@ -295,8 +291,10 @@ def delivery_fee(delivery):
 
 def find_order(user_id, order_number):
     for order in DATA["orders"]:
+
         if (
-            str(order.get("user_id")) == str(user_id)
+            str(order.get("user_id"))
+            == str(user_id)
             and str(order.get("order_number"))
             == str(order_number)
         ):
@@ -327,7 +325,7 @@ CATEGORY_NAMES = {
 
 
 # =========================================================
-# صفحه اول
+# صفحه اصلی
 # =========================================================
 
 def home_keyboard():
@@ -352,7 +350,11 @@ def home_keyboard():
     return keyboard
 
 
-async def show_home(message, user_id=None):
+async def show_home(
+    message,
+    user_id=None,
+):
+
     if user_id is None:
         user_id = str(
             message.author.user_id
@@ -453,12 +455,14 @@ async def show_previous_orders(
     ]
 
     if not orders:
+
         text = (
             "🧾 خریدهای قبلی\n\n"
             "هنوز سفارشی برای شما ثبت نشده است."
         )
 
     else:
+
         text = (
             "🧾 خریدهای قبلی\n\n"
             "سفارش‌های شما:"
@@ -532,12 +536,14 @@ async def show_order_history(
     )
 
     if order.get("address"):
+
         text += (
             f"🏠 آدرس: "
             f"{order['address']}\n"
         )
 
     if order.get("shipping_method"):
+
         text += (
             f"🚚 روش ارسال: "
             f"{order['shipping_method']}\n"
@@ -648,7 +654,7 @@ def category_keyboard(category):
                 callback_data=(
                     f"product_{product_id}"
                 ),
-            ),
+                ),
             row=row,
         )
 
@@ -982,9 +988,7 @@ async def show_customer_list(
     )
 
 
-def customer_profile_keyboard(
-    customer_id
-):
+def customer_profile_keyboard(customer_id):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1221,6 +1225,7 @@ async def show_addresses(
 def address_management_keyboard(
     customer_id,
     index,
+    back_callback,
 ):
 
     keyboard = InlineKeyboardMarkup()
@@ -1261,10 +1266,7 @@ def address_management_keyboard(
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data=(
-                f"addresses_order_"
-                f"{customer_id}"
-            ),
+            callback_data=back_callback,
         ),
         row=4,
     )
@@ -1303,9 +1305,7 @@ async def start_new_customer(
         "addresses": [],
     }
 
-    active_customer[user_id] = (
-        customer_id
-    )
+    active_customer[user_id] = customer_id
 
     user_states[user_id] = {
         "type": "customer_name",
@@ -1338,9 +1338,7 @@ async def start_new_address(
 
         return
 
-    active_customer[user_id] = (
-        customer_id
-    )
+    active_customer[user_id] = customer_id
 
     user_states[user_id] = {
         "type": "address_title",
@@ -1538,9 +1536,7 @@ async def show_final_invoice(
     )
 
     subtotal = cart_total(user_id)
-
     fee = delivery_fee(delivery)
-
     total = subtotal + fee
 
     lines = []
@@ -1588,14 +1584,14 @@ async def show_final_invoice(
     )
 
     if delivery.get("address"):
+
         text += (
             f"🏠 آدرس: "
             f"{delivery['address']}\n"
         )
 
-    if delivery.get(
-        "shipping_method"
-    ):
+    if delivery.get("shipping_method"):
+
         text += (
             f"🚚 روش ارسال: "
             f"{delivery['shipping_method']}\n"
@@ -1655,6 +1651,72 @@ async def start_order(
 
 
 # =========================================================
+# پیدا کردن عکس در پیام
+# =========================================================
+
+def get_message_photos(message):
+    """
+    در نسخه‌های مختلف کتابخانه ممکن است
+    عکس با نام photos یا photo در Message
+    در دسترس باشد.
+
+    این تابع هر دو حالت را بررسی می‌کند.
+    """
+
+    photos = getattr(
+        message,
+        "photos",
+        None,
+    )
+
+    if photos:
+        return photos
+
+    photo = getattr(
+        message,
+        "photo",
+        None,
+    )
+
+    if photo:
+
+        if isinstance(photo, (list, tuple)):
+            return photo
+
+        return [photo]
+
+    return []
+
+
+def get_photo_file_id(photo):
+    """
+    پیدا کردن file_id از شیء عکس.
+    """
+
+    file_id = getattr(
+        photo,
+        "file_id",
+        None,
+    )
+
+    if file_id:
+        return file_id
+
+    # بعضی نسخه‌ها ممکن است file_id
+    # داخل object دیگری داشته باشند.
+    if isinstance(photo, dict):
+
+        file_id = photo.get(
+            "file_id"
+        )
+
+        if file_id:
+            return file_id
+
+    return None
+
+
+# =========================================================
 # ارسال رسید به مدیر
 # =========================================================
 
@@ -1664,50 +1726,70 @@ async def send_receipt_to_admin(
     user_id,
     order,
 ):
-    """ارسال عکس رسید دریافتی برای مدیران."""
-
-    photos = getattr(message, "photos", None)
-
-    if not photos:
-        logging.error(
-            "رسید دریافت نشد: message.photos خالی است."
-        )
-        return False
+    """
+    رسید را از کاربر دریافت می‌کند
+    و همان عکس را برای تمام مدیران ارسال می‌کند.
+    """
 
     if not ADMIN_CHAT_IDS:
+
         logging.error(
             "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
         )
+
+        return False
+
+    photos = get_message_photos(
+        message
+    )
+
+    if not photos:
+
+        logging.error(
+            "عکس رسید پیدا نشد. "
+            "photos و photo هر دو خالی هستند."
+        )
+
+        return False
+
+    # بهترین/بزرگ‌ترین عکس
+    photo = photos[-1]
+
+    file_id = get_photo_file_id(
+        photo
+    )
+
+    if not file_id:
+
+        logging.error(
+            "file_id عکس رسید پیدا نشد."
+        )
+
         return False
 
     caption = (
         "📸 رسید پرداخت دریافت شد.\n\n"
         f"🔢 سفارش: #{order_number}\n"
-        f"🆔 Bale ID: {user_id}"
+        f"🆔 Bale ID: {user_id}\n"
     )
 
     if order:
+
         caption += (
-            f"\n👤 مشتری: {order.get('customer_name', '')}"
-            f"\n📱 تلفن: {order.get('phone', '')}"
-            f"\n💰 مبلغ: {money(order.get('total', 0))}"
+            f"👤 مشتری: "
+            f"{order.get('customer_name', '')}\n"
+            f"📱 تلفن: "
+            f"{order.get('phone', '')}\n"
+            f"💰 مبلغ: "
+            f"{money(order.get('total', 0))}"
         )
-
-    # در نسخه فعلی python-bale-bot، send_photo فقط InputFile می‌پذیرد.
-    # file_id عکس موجود روی سرور بله را مستقیماً داخل InputFile می‌گذاریم.
-    photo = photos[-1]
-    file_id = getattr(photo, "file_id", None)
-
-    if not file_id:
-        logging.error(
-            f"برای رسید سفارش #{order_number} file_id پیدا نشد."
-        )
-        return False
 
     success_count = 0
 
     for admin_id in ADMIN_CHAT_IDS:
+
         try:
+
             await bot.send_photo(
                 chat_id=int(admin_id),
                 photo=InputFile(file_id),
@@ -1717,12 +1799,16 @@ async def send_receipt_to_admin(
             success_count += 1
 
             logging.info(
-                f"رسید سفارش #{order_number} با موفقیت به مدیر {admin_id} ارسال شد."
+                f"رسید سفارش #{order_number} "
+                f"به مدیر {admin_id} ارسال شد."
             )
 
         except Exception as e:
+
             logging.exception(
-                f"ارسال رسید سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
+                f"خطا در ارسال رسید سفارش "
+                f"#{order_number} به مدیر "
+                f"{admin_id}: {e}"
             )
 
     return success_count > 0
@@ -1773,9 +1859,7 @@ async def create_order(
     )
 
     subtotal = cart_total(user_id)
-
     fee = delivery_fee(delivery)
-
     total = subtotal + fee
 
     order_number = DATA[
@@ -1850,6 +1934,10 @@ async def create_order(
 
     save_data()
 
+    # =====================================================
+    # پیام پرداخت به مشتری
+    # =====================================================
+
     payment_text = (
         "🎉 سفارش شما ثبت شد.\n\n"
         f"🔢 شماره سفارش: "
@@ -1873,12 +1961,14 @@ async def create_order(
         "ارسال کنید."
     )
 
+    # بسیار مهم:
+    # از این لحظه هر عکس دریافتی متعلق به همین سفارش است.
     user_states[user_id] = {
         "type": "payment_receipt",
         "order_number": order_number,
     }
 
-    # سبد بعد از ثبت سفارش خالی می‌شود
+    # سبد سفارش ثبت شده و دیگر لازم نیست در حافظه باشد.
     carts.pop(
         user_id,
         None,
@@ -1896,7 +1986,7 @@ async def create_order(
     )
 
     # =====================================================
-    # اطلاع مدیر
+    # ارسال سفارش به مدیر
     # =====================================================
 
     admin_text = (
@@ -1930,7 +2020,9 @@ async def create_order(
     admin_text += (
         f"\n💰 مبلغ نهایی: "
         f"{money(total)}\n"
-        f"🆔 Bale ID: {user_id}"
+        f"🆔 Bale ID: {user_id}\n"
+        "\n⏳ وضعیت پرداخت: "
+        "در انتظار رسید"
     )
 
     for admin_id in ADMIN_CHAT_IDS:
@@ -1944,10 +2036,157 @@ async def create_order(
 
         except Exception as e:
 
-            logging.error(
+            logging.exception(
                 f"ارسال سفارش به مدیر "
                 f"{admin_id} ناموفق بود: {e}"
             )
+
+
+# =========================================================
+# پردازش رسید
+# =========================================================
+
+async def process_payment_receipt(
+    message,
+    user_id,
+    state,
+):
+    """
+    تمام منطق رسید فقط در این تابع انجام می‌شود.
+    """
+
+    order_number = state.get(
+        "order_number"
+    )
+
+    if not order_number:
+
+        logging.error(
+            f"برای کاربر {user_id} شماره سفارش رسید وجود ندارد."
+        )
+
+        user_states[user_id] = None
+
+        await send_screen(
+            message,
+            "❌ اطلاعات سفارش پیدا نشد.\n\n"
+            "لطفاً دوباره سفارش دهید.",
+            user_id=user_id,
+        )
+
+        return True
+
+    order = find_order(
+        user_id,
+        order_number,
+    )
+
+    if not order:
+
+        logging.error(
+            f"سفارش #{order_number} برای کاربر "
+            f"{user_id} پیدا نشد."
+        )
+
+        user_states[user_id] = None
+
+        await send_screen(
+            message,
+            "❌ سفارش پیدا نشد.\n\n"
+            "لطفاً با پشتیبانی تماس بگیرید.",
+            user_id=user_id,
+        )
+
+        return True
+
+    photos = get_message_photos(
+        message
+    )
+
+    # -----------------------------------------------------
+    # عکس نیست
+    # -----------------------------------------------------
+
+    if not photos:
+
+        await send_screen(
+            message,
+            "📸 لطفاً تصویر رسید پرداخت را "
+            "به صورت عکس ارسال کنید.",
+            user_id=user_id,
+        )
+
+        return True
+
+    # -----------------------------------------------------
+    # ارسال رسید به مدیر
+    # -----------------------------------------------------
+
+    sent = await send_receipt_to_admin(
+        message,
+        order_number,
+        user_id,
+        order,
+    )
+
+    # -----------------------------------------------------
+    # ارسال موفق
+    # -----------------------------------------------------
+
+    if sent:
+
+        order["receipt"] = "ارسال شد"
+
+        order["payment_status"] = (
+            "رسید ارسال شد"
+        )
+
+        order["receipt_received_at"] = (
+            now_text()
+        )
+
+        save_data()
+
+        # بسیار مهم:
+        # حالت رسید همین‌جا پاک می‌شود.
+        # بنابراین عکس بعدی دوباره رسید تلقی نمی‌شود.
+        user_states[user_id] = None
+
+        await send_screen(
+            message,
+            "✅ رسید پرداخت شما دریافت شد.\n\n"
+            f"🔢 شماره سفارش: #{order_number}\n\n"
+            "رسید برای مدیریت ارسال شد و "
+            "پس از بررسی پرداخت، سفارش شما "
+            "آماده خواهد شد. 🌿",
+            user_id=user_id,
+        )
+
+        return True
+
+    # -----------------------------------------------------
+    # ارسال ناموفق
+    # -----------------------------------------------------
+
+    order["payment_status"] = (
+        "خطا در ارسال رسید"
+    )
+
+    save_data()
+
+    # حالت رسید را نگه می‌داریم تا کاربر
+    # همان رسید را دوباره ارسال کند.
+
+    await send_screen(
+        message,
+        "⚠️ عکس رسید دریافت شد، اما "
+        "ارسال آن برای مدیریت ناموفق بود.\n\n"
+        "لطفاً چند لحظه بعد دوباره همین "
+        "رسید را ارسال کنید.",
+        user_id=user_id,
+    )
+
+    return True
 
 
 # =========================================================
@@ -2004,6 +2243,8 @@ async def on_message(
 
     # =====================================================
     # رسید پرداخت
+    #
+    # این بخش باید قبل از تمام منطق‌های متنی باشد.
     # =====================================================
 
     state = user_states.get(
@@ -2016,77 +2257,10 @@ async def on_message(
         == "payment_receipt"
     ):
 
-        order_number = state.get(
-            "order_number"
-        )
-
-        # در python-bale-bot نام فیلد عکس "photos" است، نه "photo".
-        # هر عکس ارسالی در این مرحله باید همین‌جا پردازش شود.
-        photos = getattr(
+        await process_payment_receipt(
             message,
-            "photos",
-            None,
-        )
-
-        if photos:
-
-            order = find_order(
-                user_id,
-                order_number,
-            )
-
-            if not order:
-                logging.error(
-                    f"سفارش #{order_number} برای کاربر {user_id} پیدا نشد."
-                )
-
-                await send_screen(
-                    message,
-                    "❌ سفارش پیدا نشد.\n\n"
-                    "لطفاً با پشتیبانی تماس بگیرید.",
-                    user_id=user_id,
-                )
-                return
-
-            sent = await send_receipt_to_admin(
-                message,
-                order_number,
-                user_id,
-                order,
-            )
-
-            if sent:
-                order["receipt"] = "ارسال شد"
-                order["payment_status"] = "رسید ارسال شد"
-                save_data()
-
-                user_states[user_id] = None
-
-                await send_screen(
-                    message,
-                    "✅ رسید پرداخت شما دریافت شد.\n\n"
-                    f"شماره سفارش: #{order_number}\n\n"
-                    "رسید برای مدیریت ارسال شد و "
-                    "پس از بررسی پرداخت، سفارش شما "
-                    "آماده خواهد شد. 🌿",
-                    user_id=user_id,
-                )
-            else:
-                await send_screen(
-                    message,
-                    "⚠️ عکس رسید دریافت شد، اما ارسال آن برای مدیریت ناموفق بود.\n\n"
-                    "لطفاً چند لحظه بعد دوباره همین رسید را ارسال کنید.",
-                    user_id=user_id,
-                )
-
-            return
-
-        # اگر کاربر در حالت رسید، متن فرستاد
-        await send_screen(
-            message,
-            "📸 لطفاً تصویر رسید پرداخت را "
-            "به صورت عکس ارسال کنید.",
-            user_id=user_id,
+            user_id,
+            state,
         )
 
         return
@@ -2095,62 +2269,63 @@ async def on_message(
     # شماره تلفن
     # =====================================================
 
-    if getattr(
+    contact = getattr(
         message,
         "contact",
         None,
-    ):
+    )
 
-        phone = (
-            message.contact.phone_number
+    if contact:
+
+        phone = getattr(
+            contact,
+            "phone_number",
+            None,
         )
 
-        state = user_states.get(
-            user_id
-        )
+        if phone:
 
-        if (
-            isinstance(state, dict)
-            and state.get("type")
-            == "customer_phone"
-        ):
-
-            customer_id = state[
-                "customer_id"
-            ]
-
-        else:
-
-            customer_id = active_customer.get(
+            state = user_states.get(
                 user_id
             )
 
-        if (
-            not customer_id
-            or customer_id not in DATA["customers"]
-        ):
+            if (
+                isinstance(state, dict)
+                and state.get("type")
+                == "customer_phone"
+            ):
+
+                customer_id = state[
+                    "customer_id"
+                ]
+
+            else:
+
+                customer_id = active_customer.get(
+                    user_id
+                )
+
+            if (
+                not customer_id
+                or customer_id not in DATA["customers"]
+            ):
+
+                return
+
+            DATA["customers"][
+                customer_id
+            ]["phone"] = phone
+
+            save_data()
+
+            user_states[user_id] = None
+
+            await show_delivery(
+                message,
+                user_id,
+            )
+
             return
-
-        DATA["customers"][
-            customer_id
-        ]["phone"] = phone
-
-        save_data()
-
-        user_states[user_id] = None
-
-        await send_screen(
-            message,
-            "✅ شماره تلفن ثبت شد.",
-            user_id=user_id,
-        )
-
-        await show_delivery(
-            message,
-            user_id,
-        )
-
-        return
 
     # =====================================================
     # متن
@@ -2243,12 +2418,6 @@ async def on_message(
         save_data()
 
         user_states[user_id] = None
-
-        await send_screen(
-            message,
-            "✅ شماره تلفن ثبت شد.",
-            user_id=user_id,
-        )
 
         await show_delivery(
             message,
@@ -2566,15 +2735,16 @@ async def on_callback(
 
     data = callback.data or ""
 
-    # پاسخ فوری به کلیک
     try:
+
         if hasattr(callback, "answer"):
             await callback.answer()
+
     except Exception:
         pass
 
     # =====================================================
-    # صفحه اول
+    # صفحه اصلی
     # =====================================================
 
     if data == "home":
@@ -2692,7 +2862,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # افزودن به سبد
+    # افزودن
     # =====================================================
 
     if data.startswith("add_"):
@@ -2701,11 +2871,7 @@ async def on_callback(
             len("add_"):
         ]
 
-        product = PRODUCTS.get(
-            product_id
-        )
-
-        if not product:
+        if product_id not in PRODUCTS:
             return
 
         carts.setdefault(
@@ -2902,7 +3068,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # پروفایل مشتری
+    # پروفایل
     # =====================================================
 
     if data.startswith(
@@ -3218,6 +3384,15 @@ async def on_callback(
 
         address = addresses[index]
 
+        # آدرس از کدام صفحه آمده؟
+        if user_id in active_customer:
+            back_callback = (
+                f"addresses_profile_"
+                f"{customer_id}"
+            )
+        else:
+            back_callback = "delivery"
+
         await send_screen_callback(
             callback,
             f"📍 "
@@ -3227,13 +3402,14 @@ async def on_callback(
             components=address_management_keyboard(
                 customer_id,
                 index,
+                back_callback,
             ),
         )
 
         return
 
     # =====================================================
-    # انتخاب آدرس برای سفارش
+    # استفاده از آدرس
     # =====================================================
 
     if data.startswith(
@@ -3552,7 +3728,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # آدرس جدید از سفارش
+    # آدرس جدید
     # =====================================================
 
     if data == "delivery_new_address":
@@ -3605,7 +3781,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # اسنپ
+    # اسنپ‌باکس
     # =====================================================
 
     if data == "shipping_snapp":
@@ -3657,7 +3833,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # لغو خرید
+    # لغو
     # =====================================================
 
     if data == "cancel_cart":
@@ -3727,6 +3903,11 @@ async def on_ready():
 
     print(
         "SabziU Bale Store is ready!",
+        flush=True,
+    )
+
+    print(
+        f"ADMIN_CHAT_IDS: {ADMIN_CHAT_IDS}",
         flush=True,
     )
 
