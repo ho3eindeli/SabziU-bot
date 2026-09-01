@@ -2317,15 +2317,18 @@ async def on_message(
     message: Message
 ):
 
-    user_id = str(
-        message.author.user_id
-    )
+   user_id = str(
+    message.author.user_id
+)
 
-    print(
-        f"USER_ID: {user_id}",
-        flush=True,
-    )
-
+print("=" * 60, flush=True)
+print("🔎 MESSAGE RECEIVED", flush=True)
+print(f"👤 USER_ID: {user_id}", flush=True)
+print(f"👤 AUTHOR: {message.author}", flush=True)
+print(f"💬 CHAT: {message.chat}", flush=True)
+print(f"💬 CHAT_ID: {getattr(message.chat, 'id', None)}", flush=True)
+print(f"📝 CONTENT: {message.content}", flush=True)
+print("=" * 60, flush=True)
     # =====================================================
     # /start
     # =====================================================
