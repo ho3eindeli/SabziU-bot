@@ -116,18 +116,27 @@ PRODUCTS = {
         "active": True,
     },
 
-    # =====================================================
-    # 2. 🥬 سبزی‌های خام و تازه
-    # =====================================================
-
-    "raw_1": {
-        "name": "اسفناج",
-        "category": "raw",
+    "fried_13": {
+        "name": "اسفناج سرخ‌شده",
+        "category": "fried",
         "size": "500 گرم",
         "price": 290000,
         "image": "",
         "active": True,
     },
+
+    "fried_14": {
+        "name": "سبزی قلیه ماهی سرخ‌شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    # =====================================================
+    # 2. 🥬 سبزی‌های خام و تازه
+    # =====================================================
 
     "raw_2": {
         "name": "سبزی آش",
@@ -140,15 +149,6 @@ PRODUCTS = {
 
     "raw_3": {
         "name": "سبزی قرمه",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
-
-    "raw_4": {
-        "name": "سبزی قلیه ماهی",
         "category": "raw",
         "size": "500 گرم",
         "price": 290000,
@@ -175,7 +175,7 @@ PRODUCTS = {
     },
 
     "raw_7": {
-        "name": "نخود پوست‌کنده آماده پخت",
+        "name": "نخود فرنگی",
         "category": "raw",
         "size": "500 گرم",
         "price": 230000,
@@ -416,12 +416,12 @@ PRODUCTS = {
     },
 
     # =====================================================
-    # 7. 🌹 عرقیات و چاشنی
+    # 7. 🌹 عرقیات و چاشنی‌ها
     # =====================================================
 
     "drink_1": {
         "name": "عرق نعنا",
-        "category": "drinks",
+        "category": "condiments",
         "size": "1 لیتر",
         "price": 220000,
         "image": "",
@@ -430,7 +430,7 @@ PRODUCTS = {
 
     "drink_2": {
         "name": "گلاب",
-        "category": "drinks",
+        "category": "condiments",
         "size": "1 لیتر",
         "price": 300000,
         "image": "",
@@ -439,7 +439,7 @@ PRODUCTS = {
 
     "drink_3": {
         "name": "سرکه انگور",
-        "category": "drinks",
+        "category": "condiments",
         "size": "1 لیتر",
         "price": 250000,
         "image": "",
@@ -448,7 +448,7 @@ PRODUCTS = {
 
     "drink_4": {
         "name": "سرکه سیب",
-        "category": "drinks",
+        "category": "condiments",
         "size": "1 لیتر",
         "price": 250000,
         "image": "",
@@ -457,7 +457,7 @@ PRODUCTS = {
 
     "drink_5": {
         "name": "آبغوره",
-        "category": "drinks",
+        "category": "condiments",
         "size": "1 لیتر",
         "price": 400000,
         "image": "",
@@ -466,7 +466,7 @@ PRODUCTS = {
 
     "drink_6": {
         "name": "رب انار",
-        "category": "drinks",
+        "category": "condiments",
         "size": "500 گرم",
         "price": 350000,
         "image": "",
@@ -475,7 +475,7 @@ PRODUCTS = {
 
     "drink_7": {
         "name": "رب گوجه فرنگی",
-        "category": "drinks",
+        "category": "condiments",
         "size": "500 گرم",
         "price": 250000,
         "image": "",
