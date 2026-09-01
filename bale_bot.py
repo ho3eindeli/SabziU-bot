@@ -1727,91 +1727,167 @@ async def send_receipt_to_admin(
     order,
 ):
     """
-    رسید را از کاربر دریافت می‌کند
-    و همان عکس را برای تمام مدیران ارسال می‌کند.
+    دریافت رسید پرداخت از کاربر و ارسال مستقیم همان
+    فایل به مدیران.
+
+    سازگار با python-bale-bot 2.5.0
     """
 
-    if not ADMIN_CHAT_IDS:
-
-        logging.error(
-            "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
+    try:
+        photos = getattr(
+            message,
+            "photos",
+            None,
         )
 
-        return False
+        if not photos:
+            logging.error(
+                f"❌ رسید سفارش #{order_number}: "
+                "message.photos خالی است."
+            )
+            return False
 
-    photos = get_message_photos(
-        message
-    )
+        if not ADMIN_CHAT_IDS:
+            logging.error(
+                "❌ BALE_ADMIN_CHAT_IDS تنظیم نشده است."
+            )
+            return False
 
-    if not photos:
+        # -------------------------------------------------
+        # بزرگ‌ترین/بهترین نسخه عکس
+        # -------------------------------------------------
 
-        logging.error(
-            "عکس رسید پیدا نشد. "
-            "photos و photo هر دو خالی هستند."
+        photo = photos[-1]
+
+        logging.info(
+            f"📸 رسید سفارش #{order_number} دریافت شد."
         )
 
-        return False
-
-    # بهترین/بزرگ‌ترین عکس
-    photo = photos[-1]
-
-    file_id = get_photo_file_id(
-        photo
-    )
-
-    if not file_id:
-
-        logging.error(
-            "file_id عکس رسید پیدا نشد."
+        logging.info(
+            f"📸 file_id={getattr(photo, 'file_id', None)}"
         )
 
-        return False
-
-    caption = (
-        "📸 رسید پرداخت دریافت شد.\n\n"
-        f"🔢 سفارش: #{order_number}\n"
-        f"🆔 Bale ID: {user_id}\n"
-    )
-
-    if order:
-
-        caption += (
-            f"👤 مشتری: "
-            f"{order.get('customer_name', '')}\n"
-            f"📱 تلفن: "
-            f"{order.get('phone', '')}\n"
-            f"💰 مبلغ: "
-            f"{money(order.get('total', 0))}"
+        logging.info(
+            f"📸 file_size={getattr(photo, 'file_size', None)}"
         )
 
-    success_count = 0
-
-    for admin_id in ADMIN_CHAT_IDS:
+        # -------------------------------------------------
+        # تبدیل PhotoSize به InputFile
+        # -------------------------------------------------
 
         try:
-
-            await bot.send_photo(
-                chat_id=int(admin_id),
-                photo=InputFile(file_id),
-                caption=caption,
-            )
-
-            success_count += 1
-
-            logging.info(
-                f"رسید سفارش #{order_number} "
-                f"به مدیر {admin_id} ارسال شد."
-            )
+            input_file = photo.to_input_file()
 
         except Exception as e:
-
             logging.exception(
-                f"خطا در ارسال رسید سفارش "
-                f"#{order_number} به مدیر "
-                f"{admin_id}: {e}"
+                f"❌ تبدیل عکس رسید سفارش "
+                f"#{order_number} به InputFile ناموفق بود: {e}"
+            )
+            return False
+
+        # -------------------------------------------------
+        # متن رسید برای مدیر
+        # -------------------------------------------------
+
+        caption = (
+            "📸 رسید پرداخت دریافت شد.\n\n"
+            f"🔢 سفارش: #{order_number}\n"
+            f"🆔 Bale ID: {user_id}"
+        )
+
+        if order:
+            caption += (
+                f"\n👤 مشتری: "
+                f"{order.get('customer_name', '')}"
+                f"\n📱 تلفن: "
+                f"{order.get('phone', '')}"
+                f"\n💰 مبلغ: "
+                f"{money(order.get('total', 0))}"
             )
 
-    return success_count > 0
+        # -------------------------------------------------
+        # ارسال برای تمام مدیران
+        # -------------------------------------------------
+
+        success_count = 0
+
+        for admin_id in ADMIN_CHAT_IDS:
+
+            try:
+
+                logging.info(
+                    f"📤 در حال ارسال رسید سفارش "
+                    f"#{order_number} به مدیر {admin_id}..."
+                )
+
+                sent_message = await bot.send_photo(
+                    chat_id=int(admin_id),
+                    photo=input_file,
+                    caption=caption,
+                )
+
+                # -------------------------------------------------
+                # بررسی نتیجه واقعی API
+                # -------------------------------------------------
+
+                if sent_message:
+
+                    success_count += 1
+
+                    logging.info(
+                        f"✅ رسید سفارش #{order_number} "
+                        f"به مدیر {admin_id} ارسال شد."
+                    )
+
+                    logging.info(
+                        f"✅ پیام برگشتی از Bale: "
+                        f"{sent_message}"
+                    )
+
+                else:
+
+                    logging.error(
+                        f"❌ Bale برای رسید سفارش "
+                        f"#{order_number} پیام برگشتی نداد."
+                    )
+
+            except Exception as e:
+
+                logging.exception(
+                    f"❌ ارسال رسید سفارش "
+                    f"#{order_number} به مدیر "
+                    f"{admin_id} ناموفق بود: {e}"
+                )
+
+        # -------------------------------------------------
+        # نتیجه نهایی
+        # -------------------------------------------------
+
+        if success_count > 0:
+
+            logging.info(
+                f"🎉 رسید سفارش #{order_number} "
+                f"با موفقیت برای "
+                f"{success_count} مدیر ارسال شد."
+            )
+
+            return True
+
+        logging.error(
+            f"❌ هیچ مدیری رسید سفارش "
+            f"#{order_number} را دریافت نکرد."
+        )
+
+        return False
+
+    except Exception as e:
+
+        logging.exception(
+            f"❌ خطای کلی در ارسال رسید "
+            f"#{order_number}: {e}"
+        )
+
+        return False
 
 
 # =========================================================
