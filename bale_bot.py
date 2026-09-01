@@ -1727,9 +1727,7 @@ async def send_receipt_to_admin(
     order,
 ):
     """
-    دریافت رسید پرداخت از کاربر و ارسال مستقیم همان
-    فایل به مدیران.
-
+    دریافت رسید پرداخت و ارسال آن برای تمام مدیران.
     سازگار با python-bale-bot 2.5.0
     """
 
@@ -1754,25 +1752,44 @@ async def send_receipt_to_admin(
             return False
 
         # -------------------------------------------------
-        # بزرگ‌ترین/بهترین نسخه عکس
+        # انتخاب بهترین نسخه عکس
         # -------------------------------------------------
 
         photo = photos[-1]
+
+        file_id = getattr(
+            photo,
+            "file_id",
+            None,
+        )
+
+        file_size = getattr(
+            photo,
+            "file_size",
+            None,
+        )
 
         logging.info(
             f"📸 رسید سفارش #{order_number} دریافت شد."
         )
 
         logging.info(
-            f"📸 file_id={getattr(photo, 'file_id', None)}"
+            f"📸 file_id={file_id}"
         )
 
         logging.info(
-            f"📸 file_size={getattr(photo, 'file_size', None)}"
+            f"📸 file_size={file_size}"
         )
 
+        if not file_id:
+            logging.error(
+                f"❌ file_id رسید سفارش "
+                f"#{order_number} پیدا نشد."
+            )
+            return False
+
         # -------------------------------------------------
-        # تبدیل PhotoSize به InputFile
+        # تبدیل عکس به InputFile
         # -------------------------------------------------
 
         try:
@@ -1781,12 +1798,13 @@ async def send_receipt_to_admin(
         except Exception as e:
             logging.exception(
                 f"❌ تبدیل عکس رسید سفارش "
-                f"#{order_number} به InputFile ناموفق بود: {e}"
+                f"#{order_number} به InputFile "
+                f"ناموفق بود: {e}"
             )
             return False
 
         # -------------------------------------------------
-        # متن رسید برای مدیر
+        # متن رسید
         # -------------------------------------------------
 
         caption = (
@@ -1811,50 +1829,50 @@ async def send_receipt_to_admin(
 
         success_count = 0
 
-       for admin_id in ADMIN_CHAT_IDS:
+        for admin_id in ADMIN_CHAT_IDS:
 
-    print(
-        f"🔎 TEST ADMIN ID = {admin_id}",
-        flush=True,
-    )
+            print(
+                f"🔎 TEST ADMIN ID = {admin_id}",
+                flush=True,
+            )
 
-    print(
-        f"🔎 TEST ADMIN ID TYPE = {type(admin_id)}",
-        flush=True,
-    )
-
-    try:
+            print(
+                f"🔎 TEST ADMIN ID TYPE = {type(admin_id)}",
+                flush=True,
+            )
 
             try:
 
                 logging.info(
                     f"📤 در حال ارسال رسید سفارش "
-                    f"#{order_number} به مدیر {admin_id}..."
+                    f"#{order_number} به مدیر "
+                    f"{admin_id}..."
                 )
 
-                # ارسال عکس رسید
+                # -------------------------------------------------
+                # ارسال عکس
+                # -------------------------------------------------
+
                 sent_message = await bot.send_photo(
                     chat_id=int(admin_id),
                     photo=input_file,
                     caption=caption,
                 )
 
-                # -------------------------------------------------
-                # بررسی نتیجه واقعی API
-                # -------------------------------------------------
-
                 logging.info(
                     f"✅ send_photo موفق بود | "
                     f"admin_id={admin_id} | "
-                    f"message_id={getattr(sent_message, 'message_id', None)}"
+                    f"message_id="
+                    f"{getattr(sent_message, 'message_id', None)}"
                 )
 
                 logging.info(
-                    f"📦 پاسخ کامل Bale: {sent_message}"
+                    f"📦 پاسخ کامل Bale: "
+                    f"{sent_message}"
                 )
 
                 # -------------------------------------------------
-                # ارسال پیام متنی تستی به همان مدیر
+                # پیام تستی متنی
                 # -------------------------------------------------
 
                 test_message = await bot.send_message(
@@ -1865,48 +1883,17 @@ async def send_receipt_to_admin(
                         f"Admin ID: {admin_id}\n"
                         "اگر این پیام را می‌بینید، "
                         "ارسال پیام به چت مدیر صحیح است."
-                    )
+                    ),
                 )
 
                 logging.info(
                     f"✅ پیام تستی به مدیر ارسال شد | "
                     f"admin_id={admin_id} | "
-                    f"message_id={getattr(test_message, 'message_id', None)}"
+                    f"message_id="
+                    f"{getattr(test_message, 'message_id', None)}"
                 )
 
                 success_count += 1
-
-            except Exception as e:
-
-                logging.exception(
-                    f"❌ خطا در ارسال رسید به مدیر {admin_id}: {e}"
-                )
-
-
-                # -------------------------------------------------
-                # بررسی نتیجه واقعی API
-                # -------------------------------------------------
-
-                if sent_message:
-
-                    success_count += 1
-
-                    logging.info(
-                        f"✅ رسید سفارش #{order_number} "
-                        f"به مدیر {admin_id} ارسال شد."
-                    )
-
-                    logging.info(
-                        f"✅ پیام برگشتی از Bale: "
-                        f"{sent_message}"
-                    )
-
-                else:
-
-                    logging.error(
-                        f"❌ Bale برای رسید سفارش "
-                        f"#{order_number} پیام برگشتی نداد."
-                    )
 
             except Exception as e:
 
@@ -1945,7 +1932,6 @@ async def send_receipt_to_admin(
         )
 
         return False
-
 
 # =========================================================
 # ثبت سفارش
