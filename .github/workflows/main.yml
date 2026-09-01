@@ -53,7 +53,7 @@ jobs:
 
       - name: Check Bale Version
         run: |
-          pip show bale
+          pip show python-bale-bot
           python -c "import bale; print('BALE PATH:', bale.__file__)"
 
       - name: Test connection to Bale
