@@ -1811,7 +1811,19 @@ async def send_receipt_to_admin(
 
         success_count = 0
 
-        for admin_id in ADMIN_CHAT_IDS:
+       for admin_id in ADMIN_CHAT_IDS:
+
+    print(
+        f"🔎 TEST ADMIN ID = {admin_id}",
+        flush=True,
+    )
+
+    print(
+        f"🔎 TEST ADMIN ID TYPE = {type(admin_id)}",
+        flush=True,
+    )
+
+    try:
 
             try:
 
