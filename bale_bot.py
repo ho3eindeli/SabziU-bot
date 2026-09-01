@@ -1805,6 +1805,7 @@ async def send_receipt_to_admin(
                 f"{money(order.get('total', 0))}"
             )
 
+       ```python
         # -------------------------------------------------
         # ارسال برای تمام مدیران
         # -------------------------------------------------
@@ -1820,11 +1821,56 @@ async def send_receipt_to_admin(
                     f"#{order_number} به مدیر {admin_id}..."
                 )
 
+                # ارسال عکس رسید
                 sent_message = await bot.send_photo(
                     chat_id=int(admin_id),
                     photo=input_file,
                     caption=caption,
                 )
+
+                # -------------------------------------------------
+                # بررسی نتیجه واقعی API
+                # -------------------------------------------------
+
+                logging.info(
+                    f"✅ send_photo موفق بود | "
+                    f"admin_id={admin_id} | "
+                    f"message_id={getattr(sent_message, 'message_id', None)}"
+                )
+
+                logging.info(
+                    f"📦 پاسخ کامل Bale: {sent_message}"
+                )
+
+                # -------------------------------------------------
+                # ارسال پیام متنی تستی به همان مدیر
+                # -------------------------------------------------
+
+                test_message = await bot.send_message(
+                    chat_id=int(admin_id),
+                    text=(
+                        "🧪 تست ارتباط مدیر\n\n"
+                        f"سفارش: #{order_number}\n"
+                        f"Admin ID: {admin_id}\n"
+                        "اگر این پیام را می‌بینید، "
+                        "ارسال پیام به چت مدیر صحیح است."
+                    )
+                )
+
+                logging.info(
+                    f"✅ پیام تستی به مدیر ارسال شد | "
+                    f"admin_id={admin_id} | "
+                    f"message_id={getattr(test_message, 'message_id', None)}"
+                )
+
+                success_count += 1
+
+            except Exception as e:
+
+                logging.exception(
+                    f"❌ خطا در ارسال رسید به مدیر {admin_id}: {e}"
+                )
+```
 
                 # -------------------------------------------------
                 # بررسی نتیجه واقعی API
