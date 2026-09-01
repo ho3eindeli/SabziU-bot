@@ -51,6 +51,14 @@ jobs:
         run: |
           pip install -r requirements.txt
 
+      - name: Check Bale Version
+        run: |
+          pip show bale
+          python -c "import bale; print('BALE PATH:', bale.__file__)"
+
+      - name: Test connection to Bale
+        run: |
+
       - name: Test connection to Bale
         run: |
           echo "Testing connection to tapi.bale.ai..."
