@@ -1698,118 +1698,69 @@ async def send_receipt_to_admin(
     user_id,
     order,
 ):
-    """ارسال مستقیم رسید عکس به تمام مدیران."""
+    """
+    رسید واقعی کاربر را برای مدیر ارسال می‌کند.
 
-    try:
-        photos = getattr(message, "photos", None)
+    در SDK بله، عکس‌های دریافتی در message.photos قرار دارند.
+    برای جلوگیری از مشکل file_id/InputFile، ابتدا اطلاعات سفارش
+    برای مدیر ارسال می‌شود و سپس خود پیام عکس forward می‌شود.
+    """
 
-        if not photos:
-            logging.error(
-                f"❌ رسید سفارش #{order_number}: message.photos خالی است."
-            )
-            return False
+    photos = getattr(message, "photos", None)
 
-        if not ADMIN_CHAT_IDS:
-            logging.error(
-                "❌ BALE_ADMIN_CHAT_IDS تنظیم نشده است."
-            )
-            return False
-
-        photo = photos[-1]
-
-        logging.info(
-            f"📸 رسید سفارش #{order_number} دریافت شد."
+    if not photos:
+        logging.error(
+            "رسید دریافت نشد: message.photos خالی است."
         )
-        logging.info(
-            f"📸 file_id={getattr(photo, 'file_id', None)}"
-        )
-        logging.info(
-            f"📸 file_size={getattr(photo, 'file_size', None)}"
+        return False
+
+    caption = (
+        "📸 رسید پرداخت دریافت شد.\n\n"
+        f"🔢 سفارش: #{order_number}\n"
+        f"🆔 Bale ID: {user_id}"
+    )
+
+    if order:
+        caption += (
+            f"\n👤 مشتری: {order.get('customer_name', '')}"
+            f"\n📱 تلفن: {order.get('phone', '')}"
+            f"\n💰 مبلغ: {money(order.get('total', 0))}"
         )
 
+    if not ADMIN_CHAT_IDS:
+        logging.error(
+            "BALE_ADMIN_CHAT_IDS تنظیم نشده است."
+        )
+        return False
+
+    success_count = 0
+
+    for admin_id in ADMIN_CHAT_IDS:
         try:
-            input_file = photo.to_input_file()
+            # ابتدا مشخصات رسید را به صورت متن می‌فرستیم.
+            await bot.send_message(
+                chat_id=int(admin_id),
+                text=caption,
+            )
+
+            # سپس خود عکس ارسالی کاربر را بدون دانلود/آپلود مجدد
+            # مستقیماً برای مدیر forward می‌کنیم.
+            await message.forward(
+                chat_id=int(admin_id)
+            )
+
+            success_count += 1
+
+            logging.info(
+                f"رسید سفارش #{order_number} با موفقیت به مدیر {admin_id} ارسال شد."
+            )
+
         except Exception as e:
             logging.exception(
-                f"❌ تبدیل عکس رسید #{order_number} ناموفق بود: {e}"
-            )
-            return False
-
-        caption = (
-            "📸 رسید پرداخت دریافت شد.\n\n"
-            f"🔢 سفارش: #{order_number}\n"
-            f"🆔 Bale ID: {user_id}"
-        )
-
-        if order:
-            caption += (
-                f"\n👤 مشتری: {order.get('customer_name', '')}"
-                f"\n📱 تلفن: {order.get('phone', '')}"
-                f"\n💰 مبلغ: {money(order.get('total', 0))}"
+                f"ارسال رسید سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
             )
 
-        success_count = 0
-
-        for admin_id in ADMIN_CHAT_IDS:
-            try:
-                admin_id_int = int(str(admin_id).strip())
-
-                logging.info(
-                    f"📤 در حال ارسال رسید سفارش #{order_number} به مدیر {admin_id_int}..."
-                )
-
-                sent_message = await bot.send_photo(
-                    chat_id=admin_id_int,
-                    photo=input_file,
-                    caption=caption,
-                )
-
-                logging.info(
-                    f"✅ send_photo موفق بود | admin_id={admin_id_int} | "
-                    f"message_id={getattr(sent_message, 'message_id', None)}"
-                )
-                logging.info(
-                    f"📦 پاسخ کامل Bale: {sent_message}"
-                )
-
-                test_message = await bot.send_message(
-                    chat_id=admin_id_int,
-                    text=(
-                        "🧪 تست ارتباط مدیر\n\n"
-                        f"سفارش: #{order_number}\n"
-                        f"Admin ID: {admin_id_int}\n"
-                        "اگر این پیام را می‌بینید، ارسال پیام به چت مدیر صحیح است."
-                    ),
-                )
-
-                logging.info(
-                    f"✅ پیام تستی به مدیر ارسال شد | admin_id={admin_id_int} | "
-                    f"message_id={getattr(test_message, 'message_id', None)}"
-                )
-
-                success_count += 1
-
-            except Exception as e:
-                logging.exception(
-                    f"❌ خطا در ارسال رسید سفارش #{order_number} به مدیر {admin_id}: {e}"
-                )
-
-        if success_count > 0:
-            logging.info(
-                f"🎉 رسید سفارش #{order_number} با موفقیت برای {success_count} مدیر ارسال شد."
-            )
-            return True
-
-        logging.error(
-            f"❌ هیچ مدیری رسید سفارش #{order_number} را دریافت نکرد."
-        )
-        return False
-
-    except Exception as e:
-        logging.exception(
-            f"❌ خطای کلی در ارسال رسید #{order_number}: {e}"
-        )
-        return False
+    return success_count > 0
 
 
 # =========================================================
@@ -2047,17 +1998,10 @@ async def on_message(
         message.author.user_id
     )
 
-    print("=" * 60, flush=True)
-    print("🔎 BALE MESSAGE RECEIVED", flush=True)
-    print(f"👤 USER_ID: {user_id}", flush=True)
-    print(f"👤 AUTHOR: {message.author}", flush=True)
-    print(f"💬 CHAT: {message.chat}", flush=True)
     print(
-        f"💬 CHAT_ID: {getattr(message.chat, 'id', None)}",
+        f"USER_ID: {user_id}",
         flush=True,
     )
-    print(f"📝 CONTENT: {message.content}", flush=True)
-    print("=" * 60, flush=True)
 
     # =====================================================
     # /start
@@ -3818,11 +3762,6 @@ async def on_ready():
 
     print(
         "SabziU Bale Store is ready!",
-        flush=True,
-    )
-
-    print(
-        f"ADMIN_CHAT_IDS: {ADMIN_CHAT_IDS}",
         flush=True,
     )
 
