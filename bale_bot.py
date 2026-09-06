@@ -1942,24 +1942,24 @@ async def create_order(
 
     save_data()
 
-   payment_text = (
-    "🎉 سفارش شما ثبت شد.\n\n"
-    f"🔢 شماره سفارش: "
-    f"#{order_number}\n"
-    f"💳 مبلغ قابل پرداخت: "
-    f"{money(total)}\n\n"
-    "لطفاً مبلغ بالا را به شماره کارت "
-    "زیر واریز کنید:\n\n"
-    f"💳 {PAYMENT_CARD}\n"
-    f"👤 به نام: {PAYMENT_OWNER}\n"
-    "\n📸 سپس تصویر رسید پرداخت را "
-    "ارسال کنید."
-)
+     payment_text = (
+        "🎉 سفارش شما ثبت شد.\n\n"
+        f"🔢 شماره سفارش: "
+        f"#{order_number}\n"
+        f"💳 مبلغ قابل پرداخت: "
+        f"{money(total)}\n\n"
+        "لطفاً مبلغ بالا را به شماره کارت "
+        "زیر واریز کنید:\n\n"
+        f"💳 {PAYMENT_CARD}\n"
+        f"👤 به نام: {PAYMENT_OWNER}\n"
+        "\n📸 سپس تصویر رسید پرداخت را "
+        "ارسال کنید."
+    )
 
-user_states[user_id] = {
-    "type": "payment_receipt",
-    "order_number": order_number,
-}
+    user_states[user_id] = {
+        "type": "payment_receipt",
+        "order_number": order_number,
+    }
 
     # سبد بعد از ثبت سفارش خالی می‌شود
     carts.pop(
