@@ -7,7 +7,6 @@ from bale import (
     Bot,
     Message,
     CallbackQuery,
-    InputFile,
     Location,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
@@ -39,7 +38,9 @@ STATE_FILE = "bale_data.json"
 
 
 if not TOKEN:
-    raise RuntimeError("BALE_BOT_TOKEN تنظیم نشده است.")
+    raise RuntimeError(
+        "BALE_BOT_TOKEN تنظیم نشده است."
+    )
 
 
 logging.basicConfig(
@@ -66,20 +67,40 @@ def load_data():
         return default
 
     try:
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
+        with open(
+            STATE_FILE,
+            "r",
+            encoding="utf-8",
+        ) as f:
             data = json.load(f)
 
-        data.setdefault("customers", {})
-        data.setdefault("orders", [])
-        data.setdefault("next_order_number", 1000)
+        data.setdefault(
+            "customers",
+            {},
+        )
+
+        data.setdefault(
+            "orders",
+            [],
+        )
+
+        data.setdefault(
+            "next_order_number",
+            1000,
+        )
 
         for customer in data["customers"].values():
-            customer.setdefault("addresses", [])
+            customer.setdefault(
+                "addresses",
+                [],
+            )
 
         return data
 
     except Exception as e:
-        logging.error(f"خطا در خواندن داده‌ها: {e}")
+        logging.error(
+            f"خطا در خواندن داده‌ها: {e}"
+        )
         return default
 
 
@@ -90,7 +111,7 @@ active_customer = {}
 carts = {}
 current_delivery = {}
 
-# پیام فعلی ربات برای هر کاربر
+# پیام فعال ربات برای هر کاربر
 last_bot_message = {}
 
 
@@ -98,7 +119,11 @@ def save_data():
     temp = STATE_FILE + ".tmp"
 
     try:
-        with open(temp, "w", encoding="utf-8") as f:
+        with open(
+            temp,
+            "w",
+            encoding="utf-8",
+        ) as f:
             json.dump(
                 DATA,
                 f,
@@ -106,30 +131,41 @@ def save_data():
                 indent=2,
             )
 
-        os.replace(temp, STATE_FILE)
+        os.replace(
+            temp,
+            STATE_FILE,
+        )
 
     except Exception as e:
-        logging.error(f"خطا در ذخیره اطلاعات: {e}")
+        logging.error(
+            f"خطا در ذخیره اطلاعات: {e}"
+        )
 
 
 # =========================================================
-# مدیریت پیام‌های قبلی
+# مدیریت صفحه‌های ربات
 # =========================================================
 
 async def delete_last_bot_message(user_id):
-    old_message = last_bot_message.get(user_id)
+    old_message = last_bot_message.get(
+        user_id
+    )
 
     if not old_message:
         return
 
     try:
         await old_message.delete()
+
     except Exception as e:
         logging.debug(
             f"حذف پیام قبلی ناموفق بود: {e}"
         )
 
-    last_bot_message.pop(user_id, None)
+    last_bot_message.pop(
+        user_id,
+        None,
+    )
 
 
 async def send_screen(
@@ -138,54 +174,66 @@ async def send_screen(
     components=None,
     user_id=None,
 ):
-    """
-    هر صفحه فقط یک پیام فعال از ربات دارد.
-    پیام کاربر هیچ‌وقت حذف نمی‌شود.
-    """
 
     if user_id is None:
-        user_id = str(message.author.user_id)
+        user_id = str(
+            message.author.user_id
+        )
 
-    old_message = last_bot_message.get(user_id)
+    old_message = last_bot_message.get(
+        user_id
+    )
 
-    # اگر پیام قبلی وجود دارد حذف شود
     if old_message:
+
         try:
             await old_message.delete()
+
         except Exception as e:
             logging.debug(
                 f"حذف پیام قبلی ناموفق بود: {e}"
             )
 
-        last_bot_message.pop(user_id, None)
+        last_bot_message.pop(
+            user_id,
+            None,
+        )
 
     try:
+
         new_message = await message.reply(
             text,
             components=components,
         )
 
-        last_bot_message[user_id] = new_message
+        last_bot_message[user_id] = (
+            new_message
+        )
 
         return new_message
 
     except Exception as e:
+
         logging.error(
             f"ارسال صفحه ناموفق بود: {e}"
         )
 
         try:
+
             new_message = await bot.send_message(
                 chat_id=int(user_id),
                 text=text,
                 components=components,
             )
 
-            last_bot_message[user_id] = new_message
+            last_bot_message[user_id] = (
+                new_message
+            )
 
             return new_message
 
         except Exception as e2:
+
             logging.error(
                 f"ارسال مستقیم صفحه ناموفق بود: {e2}"
             )
@@ -198,9 +246,6 @@ async def send_screen_callback(
     text,
     components=None,
 ):
-    """
-    صفحه جدید بعد از کلیک روی دکمه.
-    """
 
     user_id = str(
         callback.from_user.user_id
@@ -208,19 +253,22 @@ async def send_screen_callback(
 
     callback_message = callback.message
 
-    old_message = last_bot_message.get(user_id)
+    old_message = last_bot_message.get(
+        user_id
+    )
 
-    # اگر همان پیام callback است،
-    # ابتدا از حافظه حذف می‌شود تا دوباره حذف نشود.
     if old_message is callback_message:
+
         last_bot_message.pop(
             user_id,
             None,
         )
 
     elif old_message:
+
         try:
             await old_message.delete()
+
         except Exception as e:
             logging.debug(
                 f"حذف پیام قبلی ناموفق بود: {e}"
@@ -232,47 +280,56 @@ async def send_screen_callback(
         )
 
     try:
-        if hasattr(callback, "answer"):
+
+        if hasattr(
+            callback,
+            "answer",
+        ):
             await callback.answer()
+
     except Exception:
         pass
 
     try:
+
         new_message = await callback_message.reply(
             text,
             components=components,
         )
 
-        last_bot_message[user_id] = new_message
+        last_bot_message[user_id] = (
+            new_message
+        )
 
         return new_message
 
     except Exception as e:
+
         logging.error(
             f"ارسال صفحه callback ناموفق بود: {e}"
         )
 
         try:
+
             new_message = await bot.send_message(
                 chat_id=int(user_id),
                 text=text,
                 components=components,
             )
 
-            last_bot_message[user_id] = new_message
+            last_bot_message[user_id] = (
+                new_message
+            )
 
             return new_message
 
         except Exception as e2:
+
             logging.error(
                 f"ارسال مستقیم callback ناموفق بود: {e2}"
             )
 
             return None
-
-
-async def clear_user_screen(user_id):
-    await delete_last_bot_message(user_id)
 
 
 # =========================================================
@@ -290,16 +347,19 @@ def money(value):
 
 
 def get_user_customers(user_id):
+
     prefix = f"{user_id}_"
 
     return [
         (cid, customer)
-        for cid, customer in DATA["customers"].items()
+        for cid, customer
+        in DATA["customers"].items()
         if cid.startswith(prefix)
     ]
 
 
 def cart_total(user_id):
+
     total = 0
 
     for product_id, quantity in carts.get(
@@ -307,11 +367,14 @@ def cart_total(user_id):
         {},
     ).items():
 
-        product = PRODUCTS.get(product_id)
+        product = PRODUCTS.get(
+            product_id
+        )
 
         if product:
             total += (
-                product["price"] * quantity
+                product["price"]
+                * quantity
             )
 
     return total
@@ -319,15 +382,26 @@ def cart_total(user_id):
 
 def delivery_fee(delivery):
     return int(
-        delivery.get("fee", 0)
+        delivery.get(
+            "fee",
+            0,
+        )
     )
 
 
-def find_order(user_id, order_number):
+def find_order(
+    user_id,
+    order_number,
+):
+
     for order in DATA["orders"]:
+
         if (
-            str(order.get("user_id")) == str(user_id)
-            and str(order.get("order_number"))
+            str(order.get("user_id"))
+            == str(user_id)
+            and str(
+                order.get("order_number")
+            )
             == str(order_number)
         ):
             return order
@@ -336,61 +410,461 @@ def find_order(user_id, order_number):
 
 
 # =========================================================
-# کاتالوگ محصولات سبزی‌یو — یکپارچه
+# محصولات
 # =========================================================
 
 PRODUCTS = {
-    "fried_1": {"name": "بادمجان سرخ شده", "category": "fried", "size": "1 کیلوگرم", "price": 370000, "image": "", "active": True},
-    "fried_2": {"name": "بادمجان کبابی", "category": "fried", "size": "1 کیلوگرم", "price": 310000, "image": "", "active": True},
-    "fried_3": {"name": "بامیه سرخ شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_4": {"name": "پیاز داغ", "category": "fried", "size": "500 گرم", "price": 400000, "image": "", "active": True},
-    "fried_5": {"name": "پیاز داغ ممتاز سبزی‌یو", "category": "fried", "size": "500 گرم", "price": 650000, "image": "", "active": True},
-    "fried_6": {"name": "خوراک لوبیا سرخ‌شده", "category": "fried", "size": "500 گرم", "price": 280000, "image": "", "active": True},
-    "fried_7": {"name": "لوبیا سرخ شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_8": {"name": "لوبیا گوجه سرخ شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_9": {"name": "میرزا قاسمی نیمه‌آماده", "category": "fried", "size": "500 گرم", "price": 200000, "image": "", "active": True},
-    "fried_10": {"name": "ساقه کرفس سرخ شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_11": {"name": "سبزی کرفس سرخ‌شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_12": {"name": "سبزی و ساقه کرفس سرخ‌شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_13": {"name": "اسفناج", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_14": {"name": "سبزی قلیه ماهی", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "fried_15": {"name": "سبزی قرمه", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
-    "raw_1": {"name": "سبزی آش", "category": "raw", "size": "500 گرم", "price": 70000, "image": "", "active": True},
-    "raw_2": {"name": "سبزی کوکو و سبزی پلو", "category": "raw", "size": "500 گرم", "price": 70000, "image": "", "active": True},
-    "raw_3": {"name": "ذرت تازه و آماده پخت", "category": "raw", "size": "500 گرم", "price": 210000, "image": "", "active": True},
-    "raw_4": {"name": "نخود فرنگی آماده پخت", "category": "raw", "size": "500 گرم", "price": 230000, "image": "", "active": True},
-    "pickle_1": {"name": "ترشی آلبالو", "category": "pickles", "size": "500 گرم", "price": 350000, "image": "", "active": True},
-    "pickle_2": {"name": "ترشی بادمجان شکم‌پر", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_3": {"name": "ترشی بندری / سالادی", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_4": {"name": "ترشی ساقه سبزی رژیمی", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_5": {"name": "ترشی لبو", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_6": {"name": "ترشی لیته بادمجان", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_7": {"name": "ترشی مخلوط درشت", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_8": {"name": "ترشی مخلوط ریز", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_9": {"name": "ترشی مکزیکی", "category": "pickles", "size": "500 گرم", "price": 400000, "image": "", "active": True},
-    "pickle_10": {"name": "ترشی نازخاتون", "category": "pickles", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "pickle_11": {"name": "شور", "category": "pickles", "size": "500 گرم", "price": 150000, "image": "", "active": True},
-    "syrup_1": {"name": "شربت آلبالو", "category": "syrup", "size": "1 لیتر", "price": 400000, "image": "", "active": True},
-    "syrup_2": {"name": "شربت انبه زعفران", "category": "syrup", "size": "1 لیتر", "price": 400000, "image": "", "active": True},
-    "syrup_3": {"name": "شربت بالنگو", "category": "syrup", "size": "1 لیتر", "price": 400000, "image": "", "active": True},
-    "syrup_4": {"name": "شربت سکنجبین", "category": "syrup", "size": "1 لیتر", "price": 300000, "image": "", "active": True},
-    "syrup_5": {"name": "شربت هل زعفران", "category": "syrup", "size": "1 لیتر", "price": 400000, "image": "", "active": True},
-    "jam_1": {"name": "مربای آلبالو", "category": "jam", "size": "500 گرم", "price": 350000, "image": "", "active": True},
-    "jam_2": {"name": "مربای بالنگ", "category": "jam", "size": "500 گرم", "price": 350000, "image": "", "active": True},
-    "jam_3": {"name": "مربای پرتقال", "category": "jam", "size": "500 گرم", "price": 280000, "image": "", "active": True},
-    "jam_4": {"name": "مربای توت‌فرنگی", "category": "jam", "size": "500 گرم", "price": 350000, "image": "", "active": True},
-    "jam_5": {"name": "مربای هویج", "category": "jam", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "spice_1": {"name": "زردچوبه", "category": "spices", "size": "500 گرم", "price": 300000, "image": "", "active": True},
-    "spice_2": {"name": "فلفل سیاه", "category": "spices", "size": "500 گرم", "price": 250000, "image": "", "active": True},
-    "spice_3": {"name": "نعنا خشک", "category": "spices", "size": "500 گرم", "price": 650000, "image": "", "active": True},
-    "condiment_1": {"name": "عرق نعنا", "category": "condiments", "size": "1 لیتر", "price": 220000, "image": "", "active": True},
-    "condiment_2": {"name": "گلاب", "category": "condiments", "size": "1 لیتر", "price": 300000, "image": "", "active": True},
-    "condiment_3": {"name": "سرکه انگور", "category": "condiments", "size": "1 لیتر", "price": 250000, "image": "", "active": True},
-    "condiment_4": {"name": "سرکه سیب", "category": "condiments", "size": "1 لیتر", "price": 250000, "image": "", "active": True},
-    "condiment_5": {"name": "آبغوره", "category": "condiments", "size": "1 لیتر", "price": 400000, "image": "", "active": True},
-    "condiment_6": {"name": "رب انار", "category": "condiments", "size": "500 گرم", "price": 350000, "image": "", "active": True},
-    "condiment_7": {"name": "رب گوجه فرنگی", "category": "condiments", "size": "500 گرم", "price": 250000, "image": "", "active": True},
+    "fried_1": {
+        "name": "بادمجان سرخ شده",
+        "category": "fried",
+        "size": "1 کیلوگرم",
+        "price": 370000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_2": {
+        "name": "بادمجان کبابی",
+        "category": "fried",
+        "size": "1 کیلوگرم",
+        "price": 310000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_3": {
+        "name": "بامیه سرخ شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_4": {
+        "name": "پیاز داغ",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_5": {
+        "name": "پیاز داغ ممتاز سبزی‌یو",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 650000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_6": {
+        "name": "خوراک لوبیا سرخ‌شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 280000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_7": {
+        "name": "لوبیا سرخ شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_8": {
+        "name": "لوبیا گوجه سرخ شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_9": {
+        "name": "میرزا قاسمی نیمه‌آماده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 200000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_10": {
+        "name": "ساقه کرفس سرخ شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_11": {
+        "name": "سبزی کرفس سرخ‌شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_12": {
+        "name": "سبزی و ساقه کرفس سرخ‌شده",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_13": {
+        "name": "اسفناج",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_14": {
+        "name": "سبزی قلیه ماهی",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "fried_15": {
+        "name": "سبزی قرمه",
+        "category": "fried",
+        "size": "500 گرم",
+        "price": 290000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_1": {
+        "name": "سبزی آش",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 70000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_2": {
+        "name": "سبزی کوکو و سبزی پلو",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 70000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_3": {
+        "name": "ذرت تازه و آماده پخت",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 210000,
+        "image": "",
+        "active": True,
+    },
+
+    "raw_4": {
+        "name": "نخود فرنگی آماده پخت",
+        "category": "raw",
+        "size": "500 گرم",
+        "price": 230000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_1": {
+        "name": "ترشی آلبالو",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_2": {
+        "name": "ترشی بادمجان شکم‌پر",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_3": {
+        "name": "ترشی بندری / سالادی",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_4": {
+        "name": "ترشی ساقه سبزی رژیمی",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_5": {
+        "name": "ترشی لبو",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_6": {
+        "name": "ترشی لیته بادمجان",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_7": {
+        "name": "ترشی مخلوط درشت",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_8": {
+        "name": "ترشی مخلوط ریز",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_9": {
+        "name": "ترشی مکزیکی",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_10": {
+        "name": "ترشی نازخاتون",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "pickle_11": {
+        "name": "شور",
+        "category": "pickles",
+        "size": "500 گرم",
+        "price": 150000,
+        "image": "",
+        "active": True,
+    },
+
+    "syrup_1": {
+        "name": "شربت آلبالو",
+        "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "syrup_2": {
+        "name": "شربت انبه زعفران",
+        "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "syrup_3": {
+        "name": "شربت بالنگو",
+        "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "syrup_4": {
+        "name": "شربت سکنجبین",
+        "category": "syrup",
+        "size": "1 لیتر",
+        "price": 300000,
+        "image": "",
+        "active": True,
+    },
+
+    "syrup_5": {
+        "name": "شربت هل زعفران",
+        "category": "syrup",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "jam_1": {
+        "name": "مربای آلبالو",
+        "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "jam_2": {
+        "name": "مربای بالنگ",
+        "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "jam_3": {
+        "name": "مربای پرتقال",
+        "category": "jam",
+        "size": "500 گرم",
+        "price": 280000,
+        "image": "",
+        "active": True,
+    },
+
+    "jam_4": {
+        "name": "مربای توت‌فرنگی",
+        "category": "jam",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "jam_5": {
+        "name": "مربای هویج",
+        "category": "jam",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "spice_1": {
+        "name": "زردچوبه",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 300000,
+        "image": "",
+        "active": True,
+    },
+
+    "spice_2": {
+        "name": "فلفل سیاه",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "spice_3": {
+        "name": "نعنا خشک",
+        "category": "spices",
+        "size": "500 گرم",
+        "price": 650000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_1": {
+        "name": "عرق نعنا",
+        "category": "condiments",
+        "size": "1 لیتر",
+        "price": 220000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_2": {
+        "name": "گلاب",
+        "category": "condiments",
+        "size": "1 لیتر",
+        "price": 300000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_3": {
+        "name": "سرکه انگور",
+        "category": "condiments",
+        "size": "1 لیتر",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_4": {
+        "name": "سرکه سیب",
+        "category": "condiments",
+        "size": "1 لیتر",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_5": {
+        "name": "آبغوره",
+        "category": "condiments",
+        "size": "1 لیتر",
+        "price": 400000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_6": {
+        "name": "رب انار",
+        "category": "condiments",
+        "size": "500 گرم",
+        "price": 350000,
+        "image": "",
+        "active": True,
+    },
+
+    "condiment_7": {
+        "name": "رب گوجه فرنگی",
+        "category": "condiments",
+        "size": "500 گرم",
+        "price": 250000,
+        "image": "",
+        "active": True,
+    },
 }
+
 
 CATEGORY_NAMES = {
     "fried": "🌿 سبزی‌های سرخ‌شده",
@@ -402,11 +876,13 @@ CATEGORY_NAMES = {
     "condiments": "🌱 چاشنی‌ها و عرقیات",
 }
 
+
 # =========================================================
 # صفحه اول
 # =========================================================
 
 def home_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -428,7 +904,11 @@ def home_keyboard():
     return keyboard
 
 
-async def show_home(message, user_id=None):
+async def show_home(
+    message,
+    user_id=None,
+):
+
     if user_id is None:
         user_id = str(
             message.author.user_id
@@ -449,6 +929,7 @@ async def show_home(message, user_id=None):
 # =========================================================
 
 def back_keyboard(callback_data):
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -467,6 +948,7 @@ def back_keyboard(callback_data):
 # =========================================================
 
 def previous_orders_keyboard(user_id):
+
     keyboard = InlineKeyboardMarkup()
 
     orders = [
@@ -529,12 +1011,14 @@ async def show_previous_orders(
     ]
 
     if not orders:
+
         text = (
             "🧾 خریدهای قبلی\n\n"
             "هنوز سفارشی برای شما ثبت نشده است."
         )
 
     else:
+
         text = (
             "🧾 خریدهای قبلی\n\n"
             "سفارش‌های شما:"
@@ -608,15 +1092,25 @@ async def show_order_history(
     )
 
     if order.get("address"):
+
         text += (
             f"🏠 آدرس: "
             f"{order['address']}\n"
         )
 
-    if order.get("latitude") is not None and order.get("longitude") is not None:
-        text += f"🌐 لوکیشن: {order['latitude']}, {order['longitude']}\n"
+    if (
+        order.get("latitude") is not None
+        and order.get("longitude") is not None
+    ):
+
+        text += (
+            f"🌐 لوکیشن: "
+            f"{order['latitude']}, "
+            f"{order['longitude']}\n"
+        )
 
     if order.get("shipping_method"):
+
         text += (
             f"🚚 روش ارسال: "
             f"{order['shipping_method']}\n"
@@ -637,6 +1131,7 @@ async def show_order_history(
 # =========================================================
 
 def categories_keyboard():
+
     keyboard = InlineKeyboardMarkup()
 
     categories = []
@@ -651,7 +1146,9 @@ def categories_keyboard():
             category
             and category not in categories
         ):
-            categories.append(category)
+            categories.append(
+                category
+            )
 
     row = 1
 
@@ -703,13 +1200,16 @@ async def show_shop(
 
 
 def category_keyboard(category):
+
     keyboard = InlineKeyboardMarkup()
 
     row = 1
 
     for product_id, product in PRODUCTS.items():
 
-        if product.get("category") != category:
+        if product.get(
+            "category"
+        ) != category:
             continue
 
         if product.get(
@@ -745,6 +1245,7 @@ def category_keyboard(category):
 
 
 def product_keyboard(product_id):
+
     keyboard = InlineKeyboardMarkup()
 
     keyboard.add(
@@ -773,6 +1274,7 @@ def product_keyboard(product_id):
 # =========================================================
 
 def cart_keyboard(user_id):
+
     keyboard = InlineKeyboardMarkup()
 
     row = 1
@@ -890,7 +1392,8 @@ async def show_cart(
             continue
 
         item_total = (
-            product["price"] * quantity
+            product["price"]
+            * quantity
         )
 
         subtotal += item_total
@@ -922,6 +1425,7 @@ async def show_cart(
 # =========================================================
 
 def customer_start_keyboard(user_id):
+
     keyboard = InlineKeyboardMarkup()
 
     customers = get_user_customers(
@@ -1010,6 +1514,7 @@ async def show_customer_start(
 
 
 def customer_list_keyboard(user_id):
+
     keyboard = InlineKeyboardMarkup()
 
     row = 1
@@ -1151,7 +1656,7 @@ async def show_customer_profile(
 
 
 # =========================================================
-# شماره تلفن
+# شماره تلفن و لوکیشن
 # =========================================================
 
 def phone_keyboard():
@@ -1169,13 +1674,16 @@ def phone_keyboard():
 
 
 def location_keyboard():
+
     keyboard = MenuKeyboardMarkup()
+
     keyboard.add(
         MenuKeyboardButton(
             "📍 ارسال لوکیشن فعلی",
             request_location=True,
         )
     )
+
     return keyboard
 
 
@@ -1311,6 +1819,7 @@ async def show_addresses(
 def address_management_keyboard(
     customer_id,
     index,
+    back_callback,
 ):
 
     keyboard = InlineKeyboardMarkup()
@@ -1351,10 +1860,7 @@ def address_management_keyboard(
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data=(
-                f"addresses_order_"
-                f"{customer_id}"
-            ),
+            callback_data=back_callback,
         ),
         row=4,
     )
@@ -1381,6 +1887,7 @@ async def start_new_customer(
         f"{user_id}_customer_{number}"
         in DATA["customers"]
     ):
+
         number += 1
 
     customer_id = (
@@ -1596,9 +2103,13 @@ async def show_final_invoice(
         {},
     )
 
-    subtotal = cart_total(user_id)
+    subtotal = cart_total(
+        user_id
+    )
 
-    fee = delivery_fee(delivery)
+    fee = delivery_fee(
+        delivery
+    )
 
     total = subtotal + fee
 
@@ -1617,7 +2128,8 @@ async def show_final_invoice(
             continue
 
         item_total = (
-            product["price"] * quantity
+            product["price"]
+            * quantity
         )
 
         lines.append(
@@ -1647,14 +2159,14 @@ async def show_final_invoice(
     )
 
     if delivery.get("address"):
+
         text += (
             f"🏠 آدرس: "
             f"{delivery['address']}\n"
         )
 
-    if delivery.get(
-        "shipping_method"
-    ):
+    if delivery.get("shipping_method"):
+
         text += (
             f"🚚 روش ارسال: "
             f"{delivery['shipping_method']}\n"
@@ -1714,7 +2226,7 @@ async def start_order(
 
 
 # =========================================================
-# ارسال رسید به مدیر
+# رسید پرداخت
 # =========================================================
 
 async def send_receipt_to_admin(
@@ -1723,21 +2235,30 @@ async def send_receipt_to_admin(
     user_id,
     order,
 ):
-    """ارسال مستقیم رسید عکس به تمام مدیران."""
 
     try:
-        photos = getattr(message, "photos", None)
+
+        photos = getattr(
+            message,
+            "photos",
+            None,
+        )
 
         if not photos:
+
             logging.error(
-                f"❌ رسید سفارش #{order_number}: message.photos خالی است."
+                f"❌ رسید سفارش #{order_number}: "
+                f"message.photos خالی است."
             )
+
             return False
 
         if not ADMIN_CHAT_IDS:
+
             logging.error(
                 "❌ BALE_ADMIN_CHAT_IDS تنظیم نشده است."
             )
+
             return False
 
         photo = photos[-1]
@@ -1745,19 +2266,25 @@ async def send_receipt_to_admin(
         logging.info(
             f"📸 رسید سفارش #{order_number} دریافت شد."
         )
+
         logging.info(
-            f"📸 file_id={getattr(photo, 'file_id', None)}"
-        )
-        logging.info(
-            f"📸 file_size={getattr(photo, 'file_size', None)}"
+            f"📸 file_id="
+            f"{getattr(photo, 'file_id', None)}"
         )
 
         try:
-            input_file = photo.to_input_file()
-        except Exception as e:
-            logging.exception(
-                f"❌ تبدیل عکس رسید #{order_number} ناموفق بود: {e}"
+
+            input_file = (
+                photo.to_input_file()
             )
+
+        except Exception as e:
+
+            logging.exception(
+                f"❌ تبدیل عکس رسید "
+                f"#{order_number} ناموفق بود: {e}"
+            )
+
             return False
 
         caption = (
@@ -1767,57 +2294,76 @@ async def send_receipt_to_admin(
         )
 
         if order:
+
             caption += (
-                f"\n👤 مشتری: {order.get('customer_name', '')}"
-                f"\n📱 تلفن: {order.get('phone', '')}"
-                f"\n💰 مبلغ: {money(order.get('total', 0))}"
+                f"\n👤 مشتری: "
+                f"{order.get('customer_name', '')}"
+                f"\n📱 تلفن: "
+                f"{order.get('phone', '')}"
+                f"\n💰 مبلغ: "
+                f"{money(order.get('total', 0))}"
             )
 
         success_count = 0
 
         for admin_id in ADMIN_CHAT_IDS:
-            try:
-                admin_id_int = int(str(admin_id).strip())
 
-                logging.info(
-                    f"📤 در حال ارسال رسید سفارش #{order_number} به مدیر {admin_id_int}..."
+            try:
+
+                admin_id_int = int(
+                    str(admin_id).strip()
                 )
 
-                sent_message = await bot.send_photo(
+                logging.info(
+                    f"📤 در حال ارسال رسید سفارش "
+                    f"#{order_number} به مدیر "
+                    f"{admin_id_int}..."
+                )
+
+                await bot.send_photo(
                     chat_id=admin_id_int,
                     photo=input_file,
                     caption=caption,
                 )
 
                 logging.info(
-                    f"✅ send_photo موفق بود | admin_id={admin_id_int} | "
-                    f"message_id={getattr(sent_message, 'message_id', None)}"
+                    f"✅ ارسال رسید موفق بود | "
+                    f"admin_id={admin_id_int}"
                 )
-                logging.info(
-                    f"📦 پاسخ کامل Bale: {sent_message}"
-                )
+
                 success_count += 1
 
             except Exception as e:
+
                 logging.exception(
-                    f"❌ خطا در ارسال رسید سفارش #{order_number} به مدیر {admin_id}: {e}"
+                    f"❌ خطا در ارسال رسید "
+                    f"#{order_number} به مدیر "
+                    f"{admin_id}: {e}"
                 )
 
         if success_count > 0:
+
             logging.info(
-                f"🎉 رسید سفارش #{order_number} با موفقیت برای {success_count} مدیر ارسال شد."
+                f"🎉 رسید سفارش #{order_number} "
+                f"برای {success_count} مدیر ارسال شد."
             )
+
             return True
 
         logging.error(
-            f"❌ هیچ مدیری رسید سفارش #{order_number} را دریافت نکرد."
+            f"❌ هیچ مدیری رسید سفارش "
+            f"#{order_number} را دریافت نکرد."
         )
+
         return False
 
     except Exception as e:
+
         logging.exception(
-            f"❌ خطای کلی در ارسال رسید #{order_number}: {e}"
+            f"❌ خطای کلی در ارسال رسید "
+            f"#{order_number}: {e}"
         )
+
         return False
 
 
@@ -1865,9 +2411,13 @@ async def create_order(
         {},
     )
 
-    subtotal = cart_total(user_id)
+    subtotal = cart_total(
+        user_id
+    )
 
-    fee = delivery_fee(delivery)
+    fee = delivery_fee(
+        delivery
+    )
 
     total = subtotal + fee
 
@@ -1927,9 +2477,16 @@ async def create_order(
             "title",
             "",
         ),
-        "address": delivery.get("address", ""),
-        "latitude": delivery.get("latitude"),
-        "longitude": delivery.get("longitude"),
+        "address": delivery.get(
+            "address",
+            "",
+        ),
+        "latitude": delivery.get(
+            "latitude"
+        ),
+        "longitude": delivery.get(
+            "longitude"
+        ),
         "shipping_method": delivery.get(
             "shipping_method",
             "",
@@ -1938,7 +2495,9 @@ async def create_order(
         "receipt": "",
     }
 
-    DATA["orders"].append(order)
+    DATA["orders"].append(
+        order
+    )
 
     save_data()
 
@@ -1961,7 +2520,6 @@ async def create_order(
         "order_number": order_number,
     }
 
-    # سبد بعد از ثبت سفارش خالی می‌شود
     carts.pop(
         user_id,
         None,
@@ -2020,10 +2578,29 @@ async def create_order(
 
         try:
 
+            admin_id_int = int(
+                str(admin_id).strip()
+            )
+
             await bot.send_message(
-                chat_id=int(admin_id),
+                chat_id=admin_id_int,
                 text=admin_text,
             )
+
+            if (
+                order.get("latitude")
+                is not None
+                and order.get("longitude")
+                is not None
+            ):
+
+                await bot.send_location(
+                    chat_id=admin_id_int,
+                    location=Location(
+                        order["latitude"],
+                        order["longitude"],
+                    ),
+                )
 
         except Exception as e:
 
@@ -2031,17 +2608,6 @@ async def create_order(
                 f"ارسال سفارش به مدیر "
                 f"{admin_id} ناموفق بود: {e}"
             )
-
-        if order.get("latitude") is not None and order.get("longitude") is not None:
-            try:
-                await bot.send_location(
-                    chat_id=int(admin_id),
-                    location=Location(order["latitude"], order["longitude"]),
-                )
-            except Exception as e:
-                logging.error(
-                    f"ارسال لوکیشن سفارش #{order_number} به مدیر {admin_id} ناموفق بود: {e}"
-                )
 
 
 # =========================================================
@@ -2057,17 +2623,30 @@ async def on_message(
         message.author.user_id
     )
 
-    print("=" * 60, flush=True)
-    print("🔎 BALE MESSAGE RECEIVED", flush=True)
-    print(f"👤 USER_ID: {user_id}", flush=True)
-    print(f"👤 AUTHOR: {message.author}", flush=True)
-    print(f"💬 CHAT: {message.chat}", flush=True)
     print(
-        f"💬 CHAT_ID: {getattr(message.chat, 'id', None)}",
+        "=" * 60,
         flush=True,
     )
-    print(f"📝 CONTENT: {message.content}", flush=True)
-    print("=" * 60, flush=True)
+
+    print(
+        "🔎 BALE MESSAGE RECEIVED",
+        flush=True,
+    )
+
+    print(
+        f"👤 USER_ID: {user_id}",
+        flush=True,
+    )
+
+    print(
+        f"💬 CONTENT: {message.content}",
+        flush=True,
+    )
+
+    print(
+        "=" * 60,
+        flush=True,
+    )
 
     # =====================================================
     # /start
@@ -2104,52 +2683,186 @@ async def on_message(
             return
 
     # =====================================================
+    # وضعیت فعلی
+    # =====================================================
+
+    state = user_states.get(
+        user_id
+    )
+
+    # =====================================================
     # دریافت لوکیشن
     # =====================================================
 
-    state = user_states.get(user_id)
-    if getattr(message, "location", None):
-        location = message.location
-        latitude = float(getattr(location, "latitude"))
-        longitude = float(getattr(location, "longitude"))
+    location = getattr(
+        message,
+        "location",
+        None,
+    )
 
-        if isinstance(state, dict) and state.get("type") == "address_location":
-            customer_id = state["customer_id"]
-            title = state["title"]
+    if location:
+
+        latitude = float(
+            getattr(
+                location,
+                "latitude",
+            )
+        )
+
+        longitude = float(
+            getattr(
+                location,
+                "longitude",
+            )
+        )
+
+        # -------------------------------------------------
+        # لوکیشن آدرس جدید
+        # -------------------------------------------------
+
+        if (
+            isinstance(state, dict)
+            and state.get("type")
+            == "address_location"
+        ):
+
+            customer_id = state[
+                "customer_id"
+            ]
+
+            title = state[
+                "title"
+            ]
+
             if customer_id not in DATA["customers"]:
+
                 user_states[user_id] = None
-                await send_screen(message, "❌ مشتری پیدا نشد.", user_id=user_id)
+
+                await send_screen(
+                    message,
+                    "❌ مشتری پیدا نشد.",
+                    user_id=user_id,
+                )
+
                 return
-            DATA["customers"][customer_id].setdefault("addresses", [])
-            DATA["customers"][customer_id]["addresses"].append({
-                "title": title, "address": "لوکیشن ثبت‌شده",
-                "latitude": latitude, "longitude": longitude,
-            })
+
+            DATA["customers"][
+                customer_id
+            ].setdefault(
+                "addresses",
+                [],
+            )
+
+            DATA["customers"][
+                customer_id
+            ]["addresses"].append(
+                {
+                    "title": title,
+                    "address": "لوکیشن ثبت‌شده",
+                    "latitude": latitude,
+                    "longitude": longitude,
+                }
+            )
+
             save_data()
+
             user_states[user_id] = None
-            active_customer[user_id] = customer_id
+
+            active_customer[user_id] = (
+                customer_id
+            )
+
             current_delivery[user_id] = {
-                "title": title, "address": "لوکیشن ثبت‌شده",
-                "latitude": latitude, "longitude": longitude, "fee": 0,
+                "title": title,
+                "address": "لوکیشن ثبت‌شده",
+                "latitude": latitude,
+                "longitude": longitude,
+                "fee": 0,
             }
-            await show_shipping_or_invoice(message, user_id)
+
+            await show_shipping_or_invoice(
+                message,
+                user_id,
+            )
+
             return
 
-        if isinstance(state, dict) and state.get("type") == "edit_address_location":
-            customer_id = state["customer_id"]
-            index = int(state["index"])
-            customer = DATA["customers"].get(customer_id)
-            addresses = customer.get("addresses", []) if customer else []
-            if not customer or index < 0 or index >= len(addresses):
+        # -------------------------------------------------
+        # اصلاح لوکیشن آدرس
+        # -------------------------------------------------
+
+        if (
+            isinstance(state, dict)
+            and state.get("type")
+            == "edit_address_location"
+        ):
+
+            customer_id = state[
+                "customer_id"
+            ]
+
+            index = int(
+                state["index"]
+            )
+
+            customer = DATA["customers"].get(
+                customer_id
+            )
+
+            if not customer:
+
                 user_states[user_id] = None
+
+                await send_screen(
+                    message,
+                    "❌ مشتری پیدا نشد.",
+                    user_id=user_id,
+                )
+
                 return
-            addresses[index].update({
-                "address": "لوکیشن ثبت‌شده",
-                "latitude": latitude, "longitude": longitude,
-            })
+
+            addresses = customer.get(
+                "addresses",
+                [],
+            )
+
+            if (
+                index < 0
+                or index >= len(addresses)
+            ):
+
+                user_states[user_id] = None
+
+                await send_screen(
+                    message,
+                    "❌ آدرس پیدا نشد.",
+                    user_id=user_id,
+                )
+
+                return
+
+            addresses[index].update(
+                {
+                    "address": "لوکیشن ثبت‌شده",
+                    "latitude": latitude,
+                    "longitude": longitude,
+                }
+            )
+
             save_data()
+
             user_states[user_id] = None
-            await show_addresses(message, customer_id, back_callback=f"addresses_profile_{customer_id}", user_id=user_id)
+
+            await show_addresses(
+                message,
+                customer_id,
+                back_callback=(
+                    f"addresses_profile_"
+                    f"{customer_id}"
+                ),
+                user_id=user_id,
+            )
+
             return
 
     # =====================================================
@@ -2170,8 +2883,6 @@ async def on_message(
             "order_number"
         )
 
-        # در python-bale-bot نام فیلد عکس "photos" است، نه "photo".
-        # هر عکس ارسالی در این مرحله باید همین‌جا پردازش شود.
         photos = getattr(
             message,
             "photos",
@@ -2186,8 +2897,10 @@ async def on_message(
             )
 
             if not order:
+
                 logging.error(
-                    f"سفارش #{order_number} برای کاربر {user_id} پیدا نشد."
+                    f"سفارش #{order_number} "
+                    f"برای کاربر {user_id} پیدا نشد."
                 )
 
                 await send_screen(
@@ -2196,6 +2909,7 @@ async def on_message(
                     "لطفاً با پشتیبانی تماس بگیرید.",
                     user_id=user_id,
                 )
+
                 return
 
             sent = await send_receipt_to_admin(
@@ -2206,9 +2920,21 @@ async def on_message(
             )
 
             if sent:
-                order["receipt"] = getattr(photos[-1], "file_id", "ارسال شد")
-                order["payment_status"] = "رسید ارسال شد"
-                order["receipt_received_at"] = now_text()
+
+                order["receipt"] = getattr(
+                    photos[-1],
+                    "file_id",
+                    "ارسال شد",
+                )
+
+                order["payment_status"] = (
+                    "رسید ارسال شد"
+                )
+
+                order["receipt_received_at"] = (
+                    now_text()
+                )
+
                 save_data()
 
                 user_states[user_id] = None
@@ -2222,17 +2948,21 @@ async def on_message(
                     "آماده خواهد شد. 🌿",
                     user_id=user_id,
                 )
+
             else:
+
                 await send_screen(
                     message,
-                    "⚠️ عکس رسید دریافت شد، اما ارسال آن برای مدیریت ناموفق بود.\n\n"
-                    "لطفاً چند لحظه بعد دوباره همین رسید را ارسال کنید.",
+                    "⚠️ عکس رسید دریافت شد، "
+                    "اما ارسال آن برای مدیریت "
+                    "ناموفق بود.\n\n"
+                    "لطفاً چند لحظه بعد دوباره "
+                    "همین رسید را ارسال کنید.",
                     user_id=user_id,
                 )
 
             return
 
-        # اگر کاربر در حالت رسید، متن فرستاد
         await send_screen(
             message,
             "📸 لطفاً تصویر رسید پرداخت را "
@@ -2243,7 +2973,7 @@ async def on_message(
         return
 
     # =====================================================
-    # شماره تلفن
+    # دریافت شماره تلفن
     # =====================================================
 
     if getattr(
@@ -2385,6 +3115,7 @@ async def on_message(
         if customer_id not in DATA["customers"]:
 
             user_states[user_id] = None
+
             return
 
         DATA["customers"][
@@ -2409,7 +3140,7 @@ async def on_message(
         return
 
     # =====================================================
-    # عنوان آدرس
+    # عنوان آدرس جدید
     # =====================================================
 
     if (
@@ -2442,7 +3173,8 @@ async def on_message(
 
         await send_screen(
             message,
-            "📍 حالا لوکیشن دقیق محل تحویل را با دکمه زیر ارسال کنید:",
+            "📍 حالا لوکیشن دقیق محل تحویل "
+            "را با دکمه زیر ارسال کنید:",
             components=location_keyboard(),
             user_id=user_id,
         )
@@ -2450,46 +3182,22 @@ async def on_message(
         return
 
     # =====================================================
-    # لوکیشن آدرس جدید
+    # اگر در حالت لوکیشن متن فرستاد
     # =====================================================
 
     if (
         isinstance(state, dict)
-        and state.get("type") == "address_location"
+        and state.get("type")
+        == "address_location"
     ):
-        customer_id = state["customer_id"]
-        title = state["title"]
-        location = getattr(message, "location", None)
 
-        if customer_id not in DATA["customers"]:
-            user_states[user_id] = None
-            await send_screen(message, "❌ مشتری پیدا نشد.", user_id=user_id)
-            return
+        await send_screen(
+            message,
+            "📍 لطفاً لوکیشن را با دکمه زیر ارسال کنید.",
+            components=location_keyboard(),
+            user_id=user_id,
+        )
 
-        if not location:
-            await send_screen(message, "📍 لطفاً لوکیشن را با دکمه زیر ارسال کنید.", components=location_keyboard(), user_id=user_id)
-            return
-
-        latitude = float(getattr(location, "latitude"))
-        longitude = float(getattr(location, "longitude"))
-        DATA["customers"][customer_id].setdefault("addresses", [])
-        DATA["customers"][customer_id]["addresses"].append({
-            "title": title,
-            "address": "لوکیشن ثبت‌شده",
-            "latitude": latitude,
-            "longitude": longitude,
-        })
-        save_data()
-        user_states[user_id] = None
-        active_customer[user_id] = customer_id
-        current_delivery[user_id] = {
-            "title": title,
-            "address": "لوکیشن ثبت‌شده",
-            "latitude": latitude,
-            "longitude": longitude,
-            "fee": 0,
-        }
-        await show_shipping_or_invoice(message, user_id)
         return
 
     # =====================================================
@@ -2528,7 +3236,7 @@ async def on_message(
         return
 
     # =====================================================
-    # اصلاح تلفن
+    # اصلاح تلفن مشتری
     # =====================================================
 
     if (
@@ -2622,7 +3330,7 @@ async def on_message(
         return
 
     # =====================================================
-    # اصلاح متن آدرس
+    # اصلاح متن آدرس قدیمی
     # =====================================================
 
     if (
@@ -2695,10 +3403,14 @@ async def on_callback(
 
     data = callback.data or ""
 
-    # پاسخ فوری به کلیک
     try:
-        if hasattr(callback, "answer"):
+
+        if hasattr(
+            callback,
+            "answer",
+        ):
             await callback.answer()
+
     except Exception:
         pass
 
@@ -2907,7 +3619,10 @@ async def on_callback(
 
             carts[user_id][product_id] -= 1
 
-            if carts[user_id][product_id] <= 0:
+            if (
+                carts[user_id][product_id]
+                <= 0
+            ):
 
                 del carts[user_id][
                     product_id
@@ -3347,18 +4062,28 @@ async def on_callback(
 
         address = addresses[index]
 
+        # تشخیص اینکه آدرس از کدام مسیر باز شده
+        # در این نسخه پیش‌فرض مسیر مدیریت پروفایل است.
+        back_callback = (
+            f"addresses_profile_{customer_id}"
+        )
+
         await send_screen_callback(
             callback,
             f"📍 "
             f"{address.get('title', 'آدرس')}\n\n"
             f"🏠 {address.get('address', '')}"
             + (
-                f"\n🌐 مختصات: {address.get('latitude')}, {address.get('longitude')}"
-                if address.get("latitude") is not None else ""
+                f"\n🌐 مختصات: "
+                f"{address.get('latitude')}, "
+                f"{address.get('longitude')}"
+                if address.get("latitude") is not None
+                else ""
             ),
             components=address_management_keyboard(
                 customer_id,
                 index,
+                back_callback,
             ),
         )
 
@@ -3418,10 +4143,20 @@ async def on_callback(
         )
 
         current_delivery[user_id] = {
-            "title": address.get("title", "آدرس"),
-            "address": address.get("address", "لوکیشن ثبت‌شده"),
-            "latitude": address.get("latitude"),
-            "longitude": address.get("longitude"),
+            "title": address.get(
+                "title",
+                "آدرس",
+            ),
+            "address": address.get(
+                "address",
+                "لوکیشن ثبت‌شده",
+            ),
+            "latitude": address.get(
+                "latitude"
+            ),
+            "longitude": address.get(
+                "longitude"
+            ),
             "fee": 0,
         }
 
@@ -3547,7 +4282,8 @@ async def on_callback(
             callback.message,
             customer_id,
             back_callback=(
-                f"profile_{customer_id}"
+                f"addresses_profile_"
+                f"{customer_id}"
             ),
             user_id=user_id,
         )
@@ -3566,6 +4302,10 @@ async def on_callback(
         )
 
         return
+
+    # =====================================================
+    # تحویل حضوری
+    # =====================================================
 
     if data == "delivery_pickup":
 
@@ -3785,7 +4525,7 @@ async def on_callback(
 
 
 # =========================================================
-# انتخاب روش ارسال برای آدرس
+# روش ارسال برای آدرس
 # =========================================================
 
 async def show_shipping_or_invoice(
@@ -3833,7 +4573,8 @@ async def on_ready():
     )
 
     print(
-        f"ADMIN_CHAT_IDS: {ADMIN_CHAT_IDS}",
+        f"ADMIN_CHAT_IDS: "
+        f"{ADMIN_CHAT_IDS}",
         flush=True,
     )
 
