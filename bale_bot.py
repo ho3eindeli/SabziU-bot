@@ -354,8 +354,8 @@ PRODUCTS = {
     "fried_12": {"name": "سبزی و ساقه کرفس سرخ‌شده", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
     "fried_13": {"name": "اسفناج", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
     "fried_14": {"name": "سبزی قلیه ماهی", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True},
+    "fried_15": {"name": "سبزی قرمه", "category": "fried", "size": "500 گرم", "price": 290000, "image": "", "active": True}
     "raw_1": {"name": "سبزی آش", "category": "raw", "size": "500 گرم", "price": 70000, "image": "", "active": True},
-    "raw_2": {"name": "سبزی قرمه", "category": "raw", "size": "500 گرم", "price": 290000, "image": "", "active": True},
     "raw_3": {"name": "سبزی کوکو و سبزی پلو", "category": "raw", "size": "500 گرم", "price": 70000, "image": "", "active": True},
     "raw_4": {"name": "ذرت تازه و آماده پخت", "category": "raw", "size": "500 گرم", "price": 210000, "image": "", "active": True},
     "raw_5": {"name": "نخود فرنگی آماده پخت", "category": "raw", "size": "500 گرم", "price": 230000, "image": "", "active": True},
@@ -1942,33 +1942,24 @@ async def create_order(
 
     save_data()
 
-    payment_text = (
-        "🎉 سفارش شما ثبت شد.\n\n"
-        f"🔢 شماره سفارش: "
-        f"#{order_number}\n"
-        f"💳 مبلغ قابل پرداخت: "
-        f"{money(total)}\n\n"
-        "لطفاً مبلغ بالا را به شماره کارت "
-        "زیر واریز کنید:\n\n"
-        f"💳 {PAYMENT_CARD}\n"
-    )
+   payment_text = (
+    "🎉 سفارش شما ثبت شد.\n\n"
+    f"🔢 شماره سفارش: "
+    f"#{order_number}\n"
+    f"💳 مبلغ قابل پرداخت: "
+    f"{money(total)}\n\n"
+    "لطفاً مبلغ بالا را به شماره کارت "
+    "زیر واریز کنید:\n\n"
+    f"💳 {PAYMENT_CARD}\n"
+    f"👤 به نام: {PAYMENT_OWNER}\n"
+    "\n📸 سپس تصویر رسید پرداخت را "
+    "ارسال کنید."
+)
 
-    if PAYMENT_OWNER:
-
-        payment_text += (
-            f"👤 به نام: "
-            f"{PAYMENT_OWNER}\n"
-        )
-
-    payment_text += (
-        "\n📸 سپس تصویر رسید پرداخت را "
-        "ارسال کنید."
-    )
-
-    user_states[user_id] = {
-        "type": "payment_receipt",
-        "order_number": order_number,
-    }
+user_states[user_id] = {
+    "type": "payment_receipt",
+    "order_number": order_number,
+}
 
     # سبد بعد از ثبت سفارش خالی می‌شود
     carts.pop(
