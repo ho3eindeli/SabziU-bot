@@ -1923,6 +1923,7 @@ async def start_new_address(
     message,
     user_id,
     customer_id,
+    context="profile",
 ):
 
     if customer_id not in DATA["customers"]:
@@ -1935,23 +1936,20 @@ async def start_new_address(
 
         return
 
-    active_customer[user_id] = (
-        customer_id
-    )
+    active_customer[user_id] = customer_id
 
     user_states[user_id] = {
-        "type": "address_title",
+        "type": "address_location",
         "customer_id": customer_id,
+        "context": context,
     }
 
     await send_screen(
         message,
         "➕ افزودن آدرس جدید\n\n"
-        "یک نام برای آدرس وارد کنید.\n"
-        "مثلاً: خانه، محل کار، فروشگاه",
+        "📍 ابتدا لوکیشن محل را ارسال کنید.",
         user_id=user_id,
     )
-
 
 # =========================================================
 # تحویل
@@ -2730,9 +2728,10 @@ async def on_message(
                 "customer_id"
             ]
 
-            title = state[
-                "title"
-            ]
+            context = state.get(
+                "context",
+                "profile",
+            )
 
             if customer_id not in DATA["customers"]:
 
@@ -2746,47 +2745,23 @@ async def on_message(
 
                 return
 
-            DATA["customers"][
-                customer_id
-            ].setdefault(
-                "addresses",
-                [],
-            )
-
-            DATA["customers"][
-                customer_id
-            ]["addresses"].append(
-                {
-                    "title": title,
-                    "address": "لوکیشن ثبت‌شده",
-                    "latitude": latitude,
-                    "longitude": longitude,
-                }
-            )
-
-            save_data()
-
-            user_states[user_id] = None
-
-            active_customer[user_id] = (
-                customer_id
-            )
-
-            current_delivery[user_id] = {
-                "title": title,
-                "address": "لوکیشن ثبت‌شده",
+            user_states[user_id] = {
+                "type": "address_title_after_location",
+                "customer_id": customer_id,
+                "context": context,
                 "latitude": latitude,
                 "longitude": longitude,
-                "fee": 0,
             }
 
-            await show_shipping_or_invoice(
+            await send_screen(
                 message,
-                user_id,
+                "📍 لوکیشن دریافت شد.\n\n"
+                "✏️ حالا یک نام برای این آدرس وارد کنید.\n\n"
+                "مثلاً: خانه، محل کار، فروشگاه",
+                user_id=user_id,
             )
 
             return
-
         # -------------------------------------------------
         # اصلاح لوکیشن آدرس
         # -------------------------------------------------
@@ -3139,19 +3114,45 @@ async def on_message(
 
         return
 
-    # =====================================================
-    # عنوان آدرس جدید
+       # =====================================================
+    # نام آدرس بعد از دریافت لوکیشن
     # =====================================================
 
     if (
         isinstance(state, dict)
         and state.get("type")
-        == "address_title"
+        == "address_title_after_location"
     ):
 
         customer_id = state[
             "customer_id"
         ]
+
+        context = state.get(
+            "context",
+            "profile",
+        )
+
+        latitude = state[
+            "latitude"
+        ]
+
+        longitude = state[
+            "longitude"
+        ]
+
+        title = text.strip()
+
+        if not title:
+
+            await send_screen(
+                message,
+                "⚠️ نام آدرس نمی‌تواند خالی باشد.\n\n"
+                "مثلاً: خانه، محل کار، فروشگاه",
+                user_id=user_id,
+            )
+
+            return
 
         if customer_id not in DATA["customers"]:
 
@@ -3165,22 +3166,70 @@ async def on_message(
 
             return
 
-        user_states[user_id] = {
-            "type": "address_location",
-            "customer_id": customer_id,
-            "title": text,
-        }
+        customer = DATA["customers"][
+            customer_id
+        ]
 
-        await send_screen(
-            message,
-            "📍 حالا لوکیشن دقیق محل تحویل "
-            "را با دکمه زیر ارسال کنید:",
-            components=location_keyboard(),
-            user_id=user_id,
+        customer.setdefault(
+            "addresses",
+            [],
         )
 
-        return
+        customer["addresses"].append(
+            {
+                "title": title,
+                "address": "لوکیشن ثبت‌شده",
+                "latitude": latitude,
+                "longitude": longitude,
+            }
+        )
 
+        save_data()
+
+        user_states[user_id] = None
+
+        active_customer[user_id] = (
+            customer_id
+        )
+
+        # ---------------------------------------------
+        # اگر از «آدرس‌های من» آمده باشد
+        # ---------------------------------------------
+
+        if context == "profile":
+
+            await show_addresses(
+                message,
+                customer_id,
+                back_callback=(
+                    f"addresses_profile_"
+                    f"{customer_id}"
+                ),
+                user_id=user_id,
+            )
+
+            return
+
+        # ---------------------------------------------
+        # اگر برای سفارش آدرس ساخته شده باشد
+        # ---------------------------------------------
+
+        if context == "order":
+
+            current_delivery[user_id] = {
+                "title": title,
+                "address": "لوکیشن ثبت‌شده",
+                "latitude": latitude,
+                "longitude": longitude,
+                "fee": 0,
+            }
+
+            await show_shipping_or_invoice(
+                message,
+                user_id,
+            )
+
+            return
     # =====================================================
     # اگر در حالت لوکیشن متن فرستاد
     # =====================================================
