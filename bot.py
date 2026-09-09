@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import requests
 from datetime import datetime
 
 from telegram import (
@@ -63,6 +64,64 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
+
+
+# =========================================================
+# اتصال به ربات بله
+# =========================================================
+
+def send_message_to_bale(text):
+    if not BALE_BOT_TOKEN:
+        logging.error(
+            "❌ BALE_BOT_TOKEN تنظیم نشده است."
+        )
+        return False
+
+    if not BALE_ADMIN_CHAT_ID:
+        logging.error(
+            "❌ BALE_ADMIN_CHAT_ID تنظیم نشده است."
+        )
+        return False
+
+    url = (
+        f"https://tapi.bale.ai/bot"
+        f"{BALE_BOT_TOKEN}/sendMessage"
+    )
+
+    payload = {
+        "chat_id": BALE_ADMIN_CHAT_ID,
+        "text": text,
+    }
+
+    try:
+        response = requests.post(
+            url,
+            json=payload,
+            timeout=15,
+        )
+
+        if response.ok:
+            logging.info(
+                "✅ پیام با موفقیت به بله ارسال شد."
+            )
+            return True
+
+        logging.error(
+            "❌ ارسال پیام به بله ناموفق بود: "
+            f"{response.status_code} - {response.text}"
+        )
+        return False
+
+    except Exception as e:
+        logging.exception(
+            f"❌ خطا در اتصال به بله: {e}"
+        )
+        return False
+
+
+# =========================================================
+# DATA
+# =========================================================
 
 
 # =========================================================
