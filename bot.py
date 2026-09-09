@@ -1291,7 +1291,7 @@ def cart_keyboard(user_id):
         buttons.append([
             InlineKeyboardButton(
                 text=(
-                    f"➕ {product['name']} "
+                    f"➕ افزایش | {product['name']} "
                     f"({quantity})"
                 ),
                 callback_data=(
@@ -1303,7 +1303,7 @@ def cart_keyboard(user_id):
         buttons.append([
             InlineKeyboardButton(
                 text=(
-                    f"➖ {product['name']}"
+                    f"➖ کاهش | {product['name']}"
                 ),
                 callback_data=(
                     f"minus_{product_id}"
@@ -1335,7 +1335,6 @@ def cart_keyboard(user_id):
     ])
 
     return InlineKeyboardMarkup(buttons)
-
 
 async def show_cart(
     message,
