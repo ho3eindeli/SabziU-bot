@@ -95,6 +95,37 @@ def load_data():
                 [],
             )
 
+        # هر اکانت فقط یک مشتری دارد.
+        customers = {}
+
+        for customer_id, customer in data["customers"].items():
+            if "_customer_" in customer_id:
+                user_id = customer_id.split("_customer_", 1)[0]
+            else:
+                user_id = customer_id
+
+            if user_id not in customers:
+                customers[user_id] = {
+                    "name": customer.get("name", ""),
+                    "phone": customer.get("phone", ""),
+                    "addresses": list(customer.get("addresses", [])),
+                }
+                continue
+
+            current = customers[user_id]
+
+            if not current.get("name") and customer.get("name"):
+                current["name"] = customer["name"]
+
+            if not current.get("phone") and customer.get("phone"):
+                current["phone"] = customer["phone"]
+
+            current["addresses"].extend(
+                customer.get("addresses", [])
+            )
+
+        data["customers"] = customers
+
         return data
 
     except Exception as e:
@@ -345,17 +376,6 @@ def now_text():
 def money(value):
     return f"{int(value):,} تومان"
 
-
-def get_user_customers(user_id):
-
-    prefix = f"{user_id}_"
-
-    return [
-        (cid, customer)
-        for cid, customer
-        in DATA["customers"].items()
-        if cid.startswith(prefix)
-    ]
 
 
 def cart_total(user_id):
@@ -1421,31 +1441,42 @@ async def show_cart(
 
 
 # =========================================================
-# مشتری
+# نمایش مشتری
 # =========================================================
+
+def get_user_customer(user_id):
+
+    return DATA["customers"].get(
+        user_id
+    )
+
 
 def customer_start_keyboard(user_id):
 
     keyboard = InlineKeyboardMarkup()
 
-    customers = get_user_customers(
+    customer = get_user_customer(
         user_id
     )
 
-    if customers:
+    if customer:
 
         keyboard.add(
             InlineKeyboardButton(
-                text="👤 مشتری قدیمی",
-                callback_data="old_customer",
+                text="✏️ اصلاح مشخصات",
+                callback_data=(
+                    f"edit_customer_{user_id}"
+                ),
             ),
             row=1,
         )
 
         keyboard.add(
             InlineKeyboardButton(
-                text="➕ مشتری جدید",
-                callback_data="new_customer",
+                text="📍 مدیریت آدرس‌ها",
+                callback_data=(
+                    f"addresses_profile_{user_id}"
+                ),
             ),
             row=2,
         )
@@ -1484,82 +1515,25 @@ async def show_customer_start(
     user_id,
 ):
 
-    customers = get_user_customers(
+    customer = get_user_customer(
         user_id
     )
 
-    if customers:
+    if customer:
 
-        text = (
-            "👤 مشخصات مشتری\n\n"
-            "یکی از گزینه‌های زیر را انتخاب کنید:"
+        await show_customer_profile(
+            message,
+            user_id,
+            user_id,
         )
 
-    else:
-
-        text = (
-            "👤 ثبت مشخصات مشتری\n\n"
-            "برای ادامه سفارش ابتدا مشخصات "
-            "خود را ثبت کنید:"
-        )
+        return
 
     await send_screen(
         message,
-        text,
+        "👤 مشخصات من\n\n"
+        "هنوز مشخصات شما ثبت نشده است.",
         components=customer_start_keyboard(
-            user_id
-        ),
-        user_id=user_id,
-    )
-
-
-def customer_list_keyboard(user_id):
-
-    keyboard = InlineKeyboardMarkup()
-
-    row = 1
-
-    for customer_id, customer in get_user_customers(
-        user_id
-    ):
-
-        keyboard.add(
-            InlineKeyboardButton(
-                text=(
-                    f"👤 "
-                    f"{customer.get('name', 'بدون نام')}"
-                ),
-                callback_data=(
-                    f"select_customer_"
-                    f"{customer_id}"
-                ),
-            ),
-            row=row,
-        )
-
-        row += 1
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="⬅️ بازگشت",
-            callback_data="customer_start",
-        ),
-        row=row,
-    )
-
-    return keyboard
-
-
-async def show_customer_list(
-    message,
-    user_id,
-):
-
-    await send_screen(
-        message,
-        "👤 مشتریان ثبت‌شده\n\n"
-        "مشتری موردنظر را انتخاب کنید:",
-        components=customer_list_keyboard(
             user_id
         ),
         user_id=user_id,
@@ -1574,32 +1548,12 @@ def customer_profile_keyboard(
 
     keyboard.add(
         InlineKeyboardButton(
-            text="🛒 انتخاب این مشتری",
-            callback_data=(
-                f"use_customer_{customer_id}"
-            ),
-        ),
-        row=1,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
             text="✏️ اصلاح مشخصات",
             callback_data=(
                 f"edit_customer_{customer_id}"
             ),
         ),
-        row=2,
-    )
-
-    keyboard.add(
-        InlineKeyboardButton(
-            text="🗑 حذف مشتری",
-            callback_data=(
-                f"delete_customer_{customer_id}"
-            ),
-        ),
-        row=3,
+        row=1,
     )
 
     keyboard.add(
@@ -1609,15 +1563,15 @@ def customer_profile_keyboard(
                 f"addresses_profile_{customer_id}"
             ),
         ),
-        row=4,
+        row=2,
     )
 
     keyboard.add(
         InlineKeyboardButton(
             text="⬅️ بازگشت",
-            callback_data="old_customer",
+            callback_data="cart",
         ),
-        row=5,
+        row=3,
     )
 
     return keyboard
@@ -1641,16 +1595,61 @@ async def show_customer_profile(
             message.author.user_id
         )
 
+    active_customer[user_id] = customer_id
+
     await send_screen(
         message,
-        f"👤 نام: "
-        f"{customer.get('name', '')}\n"
-        f"📱 تلفن: "
-        f"{customer.get('phone', '')}\n\n"
+        "👤 مشخصات من\n\n"
+        f"👤 نام: {customer.get('name', '')}\n"
+        f"📱 تلفن: {customer.get('phone', '')}\n\n"
         "عملیات موردنظر:",
         components=customer_profile_keyboard(
             customer_id
         ),
+        user_id=user_id,
+    )
+
+
+# =========================================================
+# ثبت مشتری
+# =========================================================
+
+async def start_new_customer(
+    message,
+    user_id,
+):
+
+    customer_id = user_id
+
+    if customer_id in DATA["customers"]:
+
+        await show_customer_profile(
+            message,
+            customer_id,
+            user_id,
+        )
+
+        return
+
+    DATA["customers"][customer_id] = {
+        "name": "",
+        "phone": "",
+        "addresses": [],
+    }
+
+    active_customer[user_id] = customer_id
+
+    user_states[user_id] = {
+        "type": "customer_name",
+        "customer_id": customer_id,
+    }
+
+    save_data()
+
+    await send_screen(
+        message,
+        "👤 ثبت مشخصات من\n\n"
+        "لطفاً نام و نام خانوادگی را وارد کنید:",
         user_id=user_id,
     )
 
@@ -1730,12 +1729,16 @@ def address_list_keyboard(
 
         row += 1
 
+    add_callback = (
+        f"add_address_order_{customer_id}"
+        if back_callback == "delivery"
+        else f"add_address_{customer_id}"
+    )
+
     keyboard.add(
         InlineKeyboardButton(
             text="➕ افزودن آدرس",
-            callback_data=(
-                f"add_address_{customer_id}"
-            ),
+            callback_data=add_callback,
         ),
         row=row,
     )
@@ -1868,88 +1871,6 @@ def address_management_keyboard(
     return keyboard
 
 
-# =========================================================
-# ثبت مشتری
-# =========================================================
-
-async def start_new_customer(
-    message,
-    user_id,
-):
-
-    customers = get_user_customers(
-        user_id
-    )
-
-    number = len(customers) + 1
-
-    while (
-        f"{user_id}_customer_{number}"
-        in DATA["customers"]
-    ):
-
-        number += 1
-
-    customer_id = (
-        f"{user_id}_customer_{number}"
-    )
-
-    DATA["customers"][customer_id] = {
-        "name": "",
-        "phone": "",
-        "addresses": [],
-    }
-
-    active_customer[user_id] = (
-        customer_id
-    )
-
-    user_states[user_id] = {
-        "type": "customer_name",
-        "customer_id": customer_id,
-    }
-
-    save_data()
-
-    await send_screen(
-        message,
-        "👤 ثبت مشخصات مشتری\n\n"
-        "لطفاً نام و نام خانوادگی را وارد کنید:",
-        user_id=user_id,
-    )
-
-
-async def start_new_address(
-    message,
-    user_id,
-    customer_id,
-    context="profile",
-):
-
-    if customer_id not in DATA["customers"]:
-
-        await send_screen(
-            message,
-            "❌ مشتری پیدا نشد.",
-            user_id=user_id,
-        )
-
-        return
-
-    active_customer[user_id] = customer_id
-
-    user_states[user_id] = {
-        "type": "address_location",
-        "customer_id": customer_id,
-        "context": context,
-    }
-
-    await send_screen(
-        message,
-        "➕ افزودن آدرس جدید\n\n"
-        "📍 ابتدا لوکیشن محل را ارسال کنید.",
-        user_id=user_id,
-    )
 
 # =========================================================
 # تحویل
@@ -3711,7 +3632,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # مشتری جدید
+    # ثبت مشخصات
     # =====================================================
 
     if data == "new_customer":
@@ -3724,70 +3645,12 @@ async def on_callback(
         return
 
     # =====================================================
-    # مشتری قدیمی
+    # نمایش مشخصات
     # =====================================================
-
-    if data == "old_customer":
-
-        await show_customer_list(
-            callback.message,
-            user_id,
-        )
-
-        return
 
     if data == "customer_start":
 
         await show_customer_start(
-            callback.message,
-            user_id,
-        )
-
-        return
-
-    # =====================================================
-    # انتخاب مشتری
-    # =====================================================
-
-    if data.startswith(
-        "select_customer_"
-    ):
-
-        customer_id = data[
-            len("select_customer_"):
-        ]
-
-        if customer_id not in DATA["customers"]:
-            return
-
-        await show_customer_profile(
-            callback.message,
-            customer_id,
-            user_id,
-        )
-
-        return
-
-    # =====================================================
-    # استفاده از مشتری
-    # =====================================================
-
-    if data.startswith(
-        "use_customer_"
-    ):
-
-        customer_id = data[
-            len("use_customer_"):
-        ]
-
-        if customer_id not in DATA["customers"]:
-            return
-
-        active_customer[user_id] = (
-            customer_id
-        )
-
-        await show_delivery(
             callback.message,
             user_id,
         )
@@ -3928,44 +3791,6 @@ async def on_callback(
         return
 
     # =====================================================
-    # حذف مشتری
-    # =====================================================
-
-    if data.startswith(
-        "delete_customer_"
-    ):
-
-        customer_id = data[
-            len("delete_customer_"):
-        ]
-
-        DATA["customers"].pop(
-            customer_id,
-            None,
-        )
-
-        if (
-            active_customer.get(
-                user_id
-            )
-            == customer_id
-        ):
-
-            active_customer.pop(
-                user_id,
-                None,
-            )
-
-        save_data()
-
-        await show_customer_list(
-            callback.message,
-            user_id,
-        )
-
-        return
-
-    # =====================================================
     # آدرس‌های پروفایل
     # =====================================================
 
@@ -4044,6 +3869,26 @@ async def on_callback(
     # =====================================================
 
     if data.startswith(
+        "add_address_order_"
+    ):
+
+        customer_id = data[
+            len("add_address_order_"):
+        ]
+
+        if customer_id != user_id:
+            return
+
+        await start_new_address(
+            callback.message,
+            user_id,
+            customer_id,
+            context="order",
+        )
+
+        return
+
+    if data.startswith(
         "add_address_"
     ):
 
@@ -4051,13 +3896,14 @@ async def on_callback(
             len("add_address_"):
         ]
 
-        if customer_id not in DATA["customers"]:
+        if customer_id != user_id:
             return
 
         await start_new_address(
             callback.message,
             user_id,
             customer_id,
+            context="profile",
         )
 
         return
