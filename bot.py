@@ -42,6 +42,14 @@ PAYMENT_OWNER = os.getenv(
     "",
 )
 
+BALE_BOT_TOKEN = os.getenv(
+    "BALE_BOT_TOKEN",
+)
+
+BALE_ADMIN_CHAT_ID = os.getenv(
+    "BALE_ADMIN_CHAT_ID",
+)
+
 STATE_FILE = "telegram_data.json"
 
 
