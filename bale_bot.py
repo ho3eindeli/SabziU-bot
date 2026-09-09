@@ -3585,7 +3585,7 @@ async def on_callback(
     # افزودن به سبد
     # =====================================================
 
-    if data.startswith("add_"):
+    if data.startswith("add_") and not data.startswith("add_address_"):
 
         product_id = data[
             len("add_"):
