@@ -57,6 +57,7 @@ bot = Bot(token=TOKEN)
 # =========================================================
 
 def load_data():
+
     default = {
         "customers": {},
         "orders": [],
@@ -67,11 +68,13 @@ def load_data():
         return default
 
     try:
+
         with open(
             STATE_FILE,
             "r",
             encoding="utf-8",
         ) as f:
+
             data = json.load(f)
 
         data.setdefault(
@@ -90,6 +93,7 @@ def load_data():
         )
 
         for customer in data["customers"].values():
+
             customer.setdefault(
                 "addresses",
                 [],
@@ -99,29 +103,64 @@ def load_data():
         customers = {}
 
         for customer_id, customer in data["customers"].items():
+
             if "_customer_" in customer_id:
-                user_id = customer_id.split("_customer_", 1)[0]
+
+                user_id = customer_id.split(
+                    "_customer_",
+                    1,
+                )[0]
+
             else:
+
                 user_id = customer_id
 
             if user_id not in customers:
+
                 customers[user_id] = {
-                    "name": customer.get("name", ""),
-                    "phone": customer.get("phone", ""),
-                    "addresses": list(customer.get("addresses", [])),
+                    "name": customer.get(
+                        "name",
+                        "",
+                    ),
+                    "phone": customer.get(
+                        "phone",
+                        "",
+                    ),
+                    "addresses": list(
+                        customer.get(
+                            "addresses",
+                            [],
+                        )
+                    ),
                 }
+
                 continue
 
             current = customers[user_id]
 
-            if not current.get("name") and customer.get("name"):
-                current["name"] = customer["name"]
+            if (
+                not current.get("name")
+                and customer.get("name")
+            ):
 
-            if not current.get("phone") and customer.get("phone"):
-                current["phone"] = customer["phone"]
+                current["name"] = customer[
+                    "name"
+                ]
+
+            if (
+                not current.get("phone")
+                and customer.get("phone")
+            ):
+
+                current["phone"] = customer[
+                    "phone"
+                ]
 
             current["addresses"].extend(
-                customer.get("addresses", [])
+                customer.get(
+                    "addresses",
+                    [],
+                )
             )
 
         data["customers"] = customers
@@ -129,9 +168,11 @@ def load_data():
         return data
 
     except Exception as e:
+
         logging.error(
             f"خطا در خواندن داده‌ها: {e}"
         )
+
         return default
 
 
@@ -147,14 +188,17 @@ last_bot_message = {}
 
 
 def save_data():
+
     temp = STATE_FILE + ".tmp"
 
     try:
+
         with open(
             temp,
             "w",
             encoding="utf-8",
         ) as f:
+
             json.dump(
                 DATA,
                 f,
@@ -168,6 +212,7 @@ def save_data():
         )
 
     except Exception as e:
+
         logging.error(
             f"خطا در ذخیره اطلاعات: {e}"
         )
@@ -177,7 +222,10 @@ def save_data():
 # مدیریت صفحه‌های ربات
 # =========================================================
 
-async def delete_last_bot_message(user_id):
+async def delete_last_bot_message(
+    user_id,
+):
+
     old_message = last_bot_message.get(
         user_id
     )
@@ -186,9 +234,11 @@ async def delete_last_bot_message(user_id):
         return
 
     try:
+
         await old_message.delete()
 
     except Exception as e:
+
         logging.debug(
             f"حذف پیام قبلی ناموفق بود: {e}"
         )
@@ -207,6 +257,7 @@ async def send_screen(
 ):
 
     if user_id is None:
+
         user_id = str(
             message.author.user_id
         )
@@ -218,9 +269,11 @@ async def send_screen(
     if old_message:
 
         try:
+
             await old_message.delete()
 
         except Exception as e:
+
             logging.debug(
                 f"حذف پیام قبلی ناموفق بود: {e}"
             )
@@ -298,9 +351,11 @@ async def send_screen_callback(
     elif old_message:
 
         try:
+
             await old_message.delete()
 
         except Exception as e:
+
             logging.debug(
                 f"حذف پیام قبلی ناموفق بود: {e}"
             )
@@ -316,9 +371,11 @@ async def send_screen_callback(
             callback,
             "answer",
         ):
+
             await callback.answer()
 
     except Exception:
+
         pass
 
     try:
@@ -368,14 +425,15 @@ async def send_screen_callback(
 # =========================================================
 
 def now_text():
+
     return datetime.now().strftime(
         "%Y/%m/%d - %H:%M"
     )
 
 
 def money(value):
-    return f"{int(value):,} تومان"
 
+    return f"{int(value):,} تومان"
 
 
 def cart_total(user_id):
@@ -392,6 +450,7 @@ def cart_total(user_id):
         )
 
         if product:
+
             total += (
                 product["price"]
                 * quantity
@@ -401,6 +460,7 @@ def cart_total(user_id):
 
 
 def delivery_fee(delivery):
+
     return int(
         delivery.get(
             "fee",
@@ -424,6 +484,7 @@ def find_order(
             )
             == str(order_number)
         ):
+
             return order
 
     return None
@@ -434,6 +495,7 @@ def find_order(
 # =========================================================
 
 PRODUCTS = {
+
     "fried_1": {
         "name": "بادمجان سرخ شده",
         "category": "fried",
@@ -930,6 +992,7 @@ async def show_home(
 ):
 
     if user_id is None:
+
         user_id = str(
             message.author.user_id
         )
@@ -948,7 +1011,9 @@ async def show_home(
 # بازگشت
 # =========================================================
 
-def back_keyboard(callback_data):
+def back_keyboard(
+    callback_data
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -967,7 +1032,9 @@ def back_keyboard(callback_data):
 # خریدهای قبلی
 # =========================================================
 
-def previous_orders_keyboard(user_id):
+def previous_orders_keyboard(
+    user_id
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1166,6 +1233,7 @@ def categories_keyboard():
             category
             and category not in categories
         ):
+
             categories.append(
                 category
             )
@@ -1206,6 +1274,7 @@ async def show_shop(
 ):
 
     if user_id is None:
+
         user_id = str(
             message.author.user_id
         )
@@ -1219,7 +1288,9 @@ async def show_shop(
     )
 
 
-def category_keyboard(category):
+def category_keyboard(
+    category
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1230,12 +1301,14 @@ def category_keyboard(category):
         if product.get(
             "category"
         ) != category:
+
             continue
 
         if product.get(
             "active",
             True,
         ) is False:
+
             continue
 
         keyboard.add(
@@ -1264,7 +1337,9 @@ def category_keyboard(category):
     return keyboard
 
 
-def product_keyboard(product_id):
+def product_keyboard(
+    product_id
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1293,7 +1368,9 @@ def product_keyboard(product_id):
 # سبد خرید
 # =========================================================
 
-def cart_keyboard(user_id):
+def cart_keyboard(
+    user_id
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1444,14 +1521,18 @@ async def show_cart(
 # نمایش مشتری
 # =========================================================
 
-def get_user_customer(user_id):
+def get_user_customer(
+    user_id
+):
 
     return DATA["customers"].get(
         user_id
     )
 
 
-def customer_start_keyboard(user_id):
+def customer_start_keyboard(
+    user_id
+):
 
     keyboard = InlineKeyboardMarkup()
 
@@ -1591,6 +1672,7 @@ async def show_customer_profile(
         return
 
     if user_id is None:
+
         user_id = str(
             message.author.user_id
         )
@@ -1729,6 +1811,8 @@ def address_list_keyboard(
 
         row += 1
 
+    # اگر این صفحه از مسیر سفارش باز شده،
+    # افزودن آدرس نیز باید وارد مسیر سفارش شود.
     add_callback = (
         f"add_address_order_{customer_id}"
         if back_callback == "delivery"
@@ -1746,6 +1830,7 @@ def address_list_keyboard(
     row += 1
 
     if back_callback is None:
+
         back_callback = (
             f"profile_{customer_id}"
         )
@@ -1784,6 +1869,7 @@ async def show_addresses(
         return
 
     if user_id is None:
+
         user_id = str(
             message.author.user_id
         )
@@ -1815,6 +1901,53 @@ async def show_addresses(
             customer_id,
             back_callback,
         ),
+        user_id=user_id,
+    )
+
+
+# =========================================================
+# شروع ثبت آدرس جدید
+# =========================================================
+
+async def start_new_address(
+    message,
+    user_id,
+    customer_id,
+    context="profile",
+):
+
+    # بررسی وجود مشتری
+    if customer_id not in DATA["customers"]:
+
+        user_states[user_id] = None
+
+        await send_screen(
+            message,
+            "❌ مشتری پیدا نشد.",
+            user_id=user_id,
+        )
+
+        return
+
+    # اطمینان از فعال بودن مشتری
+    active_customer[user_id] = customer_id
+
+    # تعیین مسیر ثبت آدرس
+    #
+    # profile = ثبت از «مدیریت آدرس‌ها»
+    # order   = ثبت هنگام سفارش
+    user_states[user_id] = {
+        "type": "address_location",
+        "customer_id": customer_id,
+        "context": context,
+    }
+
+    await send_screen(
+        message,
+        "📍 ثبت آدرس جدید\n\n"
+        "لطفاً لوکیشن آدرس موردنظر را "
+        "با دکمه زیر ارسال کنید:",
+        components=location_keyboard(),
         user_id=user_id,
     )
 
@@ -1869,7 +2002,6 @@ def address_management_keyboard(
     )
 
     return keyboard
-
 
 
 # =========================================================
@@ -2683,6 +2815,7 @@ async def on_message(
             )
 
             return
+
         # -------------------------------------------------
         # اصلاح لوکیشن آدرس
         # -------------------------------------------------
@@ -2906,6 +3039,7 @@ async def on_message(
             not customer_id
             or customer_id not in DATA["customers"]
         ):
+
             return
 
         DATA["customers"][
@@ -3035,7 +3169,7 @@ async def on_message(
 
         return
 
-       # =====================================================
+    # =====================================================
     # نام آدرس بعد از دریافت لوکیشن
     # =====================================================
 
@@ -3114,7 +3248,7 @@ async def on_message(
         )
 
         # ---------------------------------------------
-        # اگر از «آدرس‌های من» آمده باشد
+        # ثبت از مسیر پروفایل
         # ---------------------------------------------
 
         if context == "profile":
@@ -3132,7 +3266,7 @@ async def on_message(
             return
 
         # ---------------------------------------------
-        # اگر برای سفارش آدرس ساخته شده باشد
+        # ثبت از مسیر سفارش
         # ---------------------------------------------
 
         if context == "order":
@@ -3151,6 +3285,7 @@ async def on_message(
             )
 
             return
+
     # =====================================================
     # اگر در حالت لوکیشن متن فرستاد
     # =====================================================
@@ -3187,6 +3322,7 @@ async def on_message(
         if customer_id not in DATA["customers"]:
 
             user_states[user_id] = None
+
             return
 
         DATA["customers"][
@@ -3222,6 +3358,7 @@ async def on_message(
         if customer_id not in DATA["customers"]:
 
             user_states[user_id] = None
+
             return
 
         DATA["customers"][
@@ -3265,6 +3402,7 @@ async def on_message(
         if not customer:
 
             user_states[user_id] = None
+
             return
 
         addresses = customer.get(
@@ -3278,6 +3416,7 @@ async def on_message(
         ):
 
             user_states[user_id] = None
+
             return
 
         addresses[index]["title"] = text
@@ -3324,6 +3463,7 @@ async def on_message(
         if not customer:
 
             user_states[user_id] = None
+
             return
 
         addresses = customer.get(
@@ -3337,6 +3477,7 @@ async def on_message(
         ):
 
             user_states[user_id] = None
+
             return
 
         addresses[index]["address"] = text
@@ -3379,9 +3520,11 @@ async def on_callback(
             callback,
             "answer",
         ):
+
             await callback.answer()
 
     except Exception:
+
         pass
 
     # =====================================================
@@ -3506,7 +3649,10 @@ async def on_callback(
     # افزودن به سبد
     # =====================================================
 
-    if data.startswith("add_") and not data.startswith("add_address_"):
+    if (
+        data.startswith("add_")
+        and not data.startswith("add_address_")
+    ):
 
         product_id = data[
             len("add_"):
@@ -3865,7 +4011,7 @@ async def on_callback(
         return
 
     # =====================================================
-    # افزودن آدرس
+    # افزودن آدرس از مسیر سفارش
     # =====================================================
 
     if data.startswith(
@@ -3887,6 +4033,10 @@ async def on_callback(
         )
 
         return
+
+    # =====================================================
+    # افزودن آدرس از مسیر پروفایل
+    # =====================================================
 
     if data.startswith(
         "add_address_"
@@ -3953,12 +4103,13 @@ async def on_callback(
             index < 0
             or index >= len(addresses)
         ):
+
             return
 
         address = addresses[index]
 
-        # تشخیص اینکه آدرس از کدام مسیر باز شده
-        # در این نسخه پیش‌فرض مسیر مدیریت پروفایل است.
+        # در نسخه فعلی صفحه مدیریت آدرس،
+        # مسیر بازگشت پروفایل است.
         back_callback = (
             f"addresses_profile_{customer_id}"
         )
@@ -4029,6 +4180,7 @@ async def on_callback(
             index < 0
             or index >= len(addresses)
         ):
+
             return
 
         address = addresses[index]
@@ -4107,6 +4259,7 @@ async def on_callback(
             index < 0
             or index >= len(addresses)
         ):
+
             return
 
         user_states[user_id] = {
@@ -4167,6 +4320,7 @@ async def on_callback(
             index < 0
             or index >= len(addresses)
         ):
+
             return
 
         del addresses[index]
@@ -4246,6 +4400,10 @@ async def on_callback(
             [],
         )
 
+        # -------------------------------------------------
+        # هیچ آدرسی وجود ندارد
+        # -------------------------------------------------
+
         if not addresses:
 
             keyboard = InlineKeyboardMarkup()
@@ -4254,7 +4412,7 @@ async def on_callback(
                 InlineKeyboardButton(
                     text="➕ افزودن آدرس",
                     callback_data=(
-                        f"add_address_"
+                        f"add_address_order_"
                         f"{customer_id}"
                     ),
                 ),
@@ -4273,11 +4431,17 @@ async def on_callback(
                 callback,
                 "📍 آدرس‌های من\n\n"
                 "هنوز آدرسی برای شما "
-                "ثبت نشده است.",
+                "ثبت نشده است.\n\n"
+                "برای ثبت آدرس جدید روی "
+                "گزینه زیر بزنید.",
                 components=keyboard,
             )
 
             return
+
+        # -------------------------------------------------
+        # نمایش آدرس‌های موجود
+        # -------------------------------------------------
 
         await show_addresses(
             callback.message,
@@ -4311,6 +4475,7 @@ async def on_callback(
             callback.message,
             user_id,
             customer_id,
+            context="order",
         )
 
         return
