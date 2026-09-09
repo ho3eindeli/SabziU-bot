@@ -2174,14 +2174,6 @@ async def send_receipt_to_admin(
 
             return False
 
-        if not ADMIN_CHAT_IDS:
-
-            logging.error(
-                "❌ TELEGRAM_ADMIN_CHAT_IDS تنظیم نشده است."
-            )
-
-            return False
-
         photo = message.photo[-1]
 
         caption = (
@@ -2203,32 +2195,111 @@ async def send_receipt_to_admin(
 
         success_count = 0
 
-        for admin_id in ADMIN_CHAT_IDS:
+        # =====================================================
+        # ارسال به مدیران تلگرام
+        # =====================================================
+
+        if ADMIN_CHAT_IDS:
+
+            for admin_id in ADMIN_CHAT_IDS:
+
+                try:
+
+                    await message.get_bot().send_photo(
+                        chat_id=int(
+                            str(admin_id).strip()
+                        ),
+                        photo=photo.file_id,
+                        caption=caption,
+                    )
+
+                    logging.info(
+                        f"✅ رسید سفارش #{order_number} "
+                        f"برای مدیر تلگرام {admin_id} ارسال شد."
+                    )
+
+                    success_count += 1
+
+                except Exception as e:
+
+                    logging.exception(
+                        f"❌ ارسال رسید سفارش "
+                        f"#{order_number} به مدیر تلگرام "
+                        f"{admin_id} ناموفق بود: {e}"
+                    )
+
+        # =====================================================
+        # ارسال به مدیر بله
+        # =====================================================
+
+        if BALE_BOT_TOKEN and BALE_ADMIN_CHAT_ID:
 
             try:
 
-                await message.get_bot().send_photo(
-                    chat_id=int(
-                        str(admin_id).strip()
-                    ),
-                    photo=photo.file_id,
-                    caption=caption,
+                telegram_file = await message.get_bot().get_file(
+                    photo.file_id
                 )
 
-                logging.info(
-                    f"✅ رسید سفارش #{order_number} "
-                    f"برای مدیر {admin_id} ارسال شد."
+                photo_bytes = (
+                    await telegram_file.download_as_bytearray()
                 )
 
-                success_count += 1
+                bale_url = (
+                    f"https://tapi.bale.ai/bot"
+                    f"{BALE_BOT_TOKEN}/sendPhoto"
+                )
+
+                bale_files = {
+                    "photo": (
+                        "receipt.jpg",
+                        bytes(photo_bytes),
+                        "image/jpeg",
+                    )
+                }
+
+                bale_data = {
+                    "chat_id": BALE_ADMIN_CHAT_ID,
+                    "caption": caption,
+                }
+
+                response = requests.post(
+                    bale_url,
+                    data=bale_data,
+                    files=bale_files,
+                    timeout=30,
+                )
+
+                if response.ok:
+
+                    logging.info(
+                        f"✅ رسید سفارش #{order_number} "
+                        "با موفقیت به بله ارسال شد."
+                    )
+
+                    success_count += 1
+
+                else:
+
+                    logging.error(
+                        f"❌ ارسال رسید سفارش "
+                        f"#{order_number} به بله ناموفق بود: "
+                        f"{response.status_code} - "
+                        f"{response.text}"
+                    )
 
             except Exception as e:
 
                 logging.exception(
-                    f"❌ ارسال رسید سفارش "
-                    f"#{order_number} به مدیر "
-                    f"{admin_id} ناموفق بود: {e}"
+                    f"❌ خطای ارسال رسید سفارش "
+                    f"#{order_number} به بله: {e}"
                 )
+
+        else:
+
+            logging.error(
+                "❌ BALE_BOT_TOKEN یا "
+                "BALE_ADMIN_CHAT_ID تنظیم نشده است."
+            )
 
         return success_count > 0
 
@@ -2240,7 +2311,6 @@ async def send_receipt_to_admin(
         )
 
         return False
-
 
 # =========================================================
 # ثبت سفارش
