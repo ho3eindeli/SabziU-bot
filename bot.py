@@ -36,7 +36,10 @@ ADMIN_CHAT_IDS = [
     if x.strip()
 ]
 
-PAYMENT_CARD = "6219861967021642"
+PAYMENT_CARD = os.getenv(
+    "TELEGRAM_PAYMENT_CARD",
+    "",
+)
 
 PAYMENT_OWNER = os.getenv(
     "TELEGRAM_PAYMENT_OWNER",
@@ -52,6 +55,7 @@ BALE_ADMIN_CHAT_ID = os.getenv(
 )
 
 STATE_FILE = "telegram_data.json"
+    PRODUCTS_FILE = "products.json"
 
 
 if not TOKEN:
@@ -521,458 +525,99 @@ def find_order(
 # محصولات
 # =========================================================
 
-PRODUCTS = {
+def load_products():
 
-    "fried_1": {
-        "name": "بادمجان سرخ شده",
-        "category": "fried",
-        "size": "1 کیلوگرم",
-        "price": 370000,
-        "image": "",
-        "active": True,
-    },
+    if not os.path.exists(PRODUCTS_FILE):
 
-    "fried_2": {
-        "name": "بادمجان کبابی",
-        "category": "fried",
-        "size": "1 کیلوگرم",
-        "price": 310000,
-        "image": "",
-        "active": True,
-    },
+        raise RuntimeError(
+            f"{PRODUCTS_FILE} پیدا نشد."
+        )
 
-    "fried_3": {
-        "name": "بامیه سرخ شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+    try:
 
-    "fried_4": {
-        "name": "پیاز داغ",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
+        with open(
+            PRODUCTS_FILE,
+            "r",
+            encoding="utf-8",
+        ) as f:
 
-    "fried_5": {
-        "name": "پیاز داغ ممتاز سبزی‌یو",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 650000,
-        "image": "",
-        "active": True,
-    },
+            products_list = json.load(f)
 
-    "fried_6": {
-        "name": "خوراک لوبیا سرخ‌شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 280000,
-        "image": "",
-        "active": True,
-    },
+        if not isinstance(
+            products_list,
+            list,
+        ):
 
-    "fried_7": {
-        "name": "لوبیا سرخ شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            raise ValueError(
+                "ساختار products.json باید یک لیست باشد."
+            )
 
-    "fried_8": {
-        "name": "لوبیا گوجه سرخ شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+        products = {}
 
-    "fried_9": {
-        "name": "میرزا قاسمی نیمه‌آماده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 200000,
-        "image": "",
-        "active": True,
-    },
+        for product in products_list:
 
-    "fried_10": {
-        "name": "ساقه کرفس سرخ شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            product_id = product.get(
+                "id"
+            )
 
-    "fried_11": {
-        "name": "سبزی کرفس سرخ‌شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            if not product_id:
 
-    "fried_12": {
-        "name": "سبزی و ساقه کرفس سرخ‌شده",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+                raise ValueError(
+                    "یکی از محصولات فاقد id است."
+                )
 
-    "fried_13": {
-        "name": "اسفناج",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            size = product.get(
+                "size",
+                "",
+            )
 
-    "fried_14": {
-        "name": "سبزی قلیه ماهی",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            size_display = {
+                "500g": "500 گرم",
+                "1kg": "1 کیلوگرم",
+                "1L": "1 لیتر",
+            }.get(
+                size,
+                size,
+            )
 
-    "fried_15": {
-        "name": "سبزی قرمه",
-        "category": "fried",
-        "size": "500 گرم",
-        "price": 290000,
-        "image": "",
-        "active": True,
-    },
+            products[product_id] = {
+                "name": product.get(
+                    "name",
+                    "",
+                ),
+                "category": product.get(
+                    "category",
+                    "",
+                ),
+                "size": size_display,
+                "price": int(
+                    product.get(
+                        "price",
+                        0,
+                    )
+                ),
+                "image": product.get(
+                    "image",
+                    "",
+                ),
+                "active": bool(
+                    product.get(
+                        "active",
+                        True,
+                    )
+                ),
+            }
 
-    "raw_1": {
-        "name": "سبزی آش",
-        "category": "raw",
-        "size": "500 گرم",
-        "price": 70000,
-        "image": "",
-        "active": True,
-    },
+        return products
 
-    "raw_2": {
-        "name": "سبزی کوکو و سبزی پلو",
-        "category": "raw",
-        "size": "500 گرم",
-        "price": 70000,
-        "image": "",
-        "active": True,
-    },
+    except Exception as e:
 
-    "raw_3": {
-        "name": "ذرت تازه و آماده پخت",
-        "category": "raw",
-        "size": "500 گرم",
-        "price": 210000,
-        "image": "",
-        "active": True,
-    },
+        raise RuntimeError(
+            f"خطا در خواندن {PRODUCTS_FILE}: {e}"
+        )
 
-    "raw_4": {
-        "name": "نخود فرنگی آماده پخت",
-        "category": "raw",
-        "size": "500 گرم",
-        "price": 230000,
-        "image": "",
-        "active": True,
-    },
 
-    "pickle_1": {
-        "name": "ترشی آلبالو",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 350000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_2": {
-        "name": "ترشی بادمجان شکم‌پر",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_3": {
-        "name": "ترشی بندری / سالادی",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_4": {
-        "name": "ترشی ساقه سبزی رژیمی",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_5": {
-        "name": "ترشی لبو",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_6": {
-        "name": "ترشی لیته بادمجان",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_7": {
-        "name": "ترشی مخلوط درشت",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_8": {
-        "name": "ترشی مخلوط ریز",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_9": {
-        "name": "ترشی مکزیکی",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_10": {
-        "name": "ترشی نازخاتون",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "pickle_11": {
-        "name": "شور",
-        "category": "pickles",
-        "size": "500 گرم",
-        "price": 150000,
-        "image": "",
-        "active": True,
-    },
-
-    "syrup_1": {
-        "name": "شربت آلبالو",
-        "category": "syrup",
-        "size": "1 لیتر",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "syrup_2": {
-        "name": "شربت انبه زعفران",
-        "category": "syrup",
-        "size": "1 لیتر",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "syrup_3": {
-        "name": "شربت بالنگو",
-        "category": "syrup",
-        "size": "1 لیتر",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "syrup_4": {
-        "name": "شربت سکنجبین",
-        "category": "syrup",
-        "size": "1 لیتر",
-        "price": 300000,
-        "image": "",
-        "active": True,
-    },
-
-    "syrup_5": {
-        "name": "شربت هل زعفران",
-        "category": "syrup",
-        "size": "1 لیتر",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "jam_1": {
-        "name": "مربای آلبالو",
-        "category": "jam",
-        "size": "500 گرم",
-        "price": 350000,
-        "image": "",
-        "active": True,
-    },
-
-    "jam_2": {
-        "name": "مربای بالنگ",
-        "category": "jam",
-        "size": "500 گرم",
-        "price": 350000,
-        "image": "",
-        "active": True,
-    },
-
-    "jam_3": {
-        "name": "مربای پرتقال",
-        "category": "jam",
-        "size": "500 گرم",
-        "price": 280000,
-        "image": "",
-        "active": True,
-    },
-
-    "jam_4": {
-        "name": "مربای توت‌فرنگی",
-        "category": "jam",
-        "size": "500 گرم",
-        "price": 350000,
-        "image": "",
-        "active": True,
-    },
-
-    "jam_5": {
-        "name": "مربای هویج",
-        "category": "jam",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "spice_1": {
-        "name": "زردچوبه",
-        "category": "spices",
-        "size": "500 گرم",
-        "price": 300000,
-        "image": "",
-        "active": True,
-    },
-
-    "spice_2": {
-        "name": "فلفل سیاه",
-        "category": "spices",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "spice_3": {
-        "name": "نعنا خشک",
-        "category": "spices",
-        "size": "500 گرم",
-        "price": 650000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_1": {
-        "name": "عرق نعنا",
-        "category": "condiments",
-        "size": "1 لیتر",
-        "price": 220000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_2": {
-        "name": "گلاب",
-        "category": "condiments",
-        "size": "1 لیتر",
-        "price": 300000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_3": {
-        "name": "سرکه انگور",
-        "category": "condiments",
-        "size": "1 لیتر",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_4": {
-        "name": "سرکه سیب",
-        "category": "condiments",
-        "size": "1 لیتر",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_5": {
-        "name": "آبغوره",
-        "category": "condiments",
-        "size": "1 لیتر",
-        "price": 400000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_6": {
-        "name": "رب انار",
-        "category": "condiments",
-        "size": "500 گرم",
-        "price": 350000,
-        "image": "",
-        "active": True,
-    },
-
-    "condiment_7": {
-        "name": "رب گوجه فرنگی",
-        "category": "condiments",
-        "size": "500 گرم",
-        "price": 250000,
-        "image": "",
-        "active": True,
-    },
-}
+PRODUCTS = load_products()
 
 
 CATEGORY_NAMES = {
