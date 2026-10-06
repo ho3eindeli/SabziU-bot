@@ -55,8 +55,7 @@ BALE_ADMIN_CHAT_ID = os.getenv(
 )
 
 STATE_FILE = "telegram_data.json"
-    PRODUCTS_FILE = "products.json"
-
+PRODUCTS_FILE = "products.json"
 
 if not TOKEN:
     raise RuntimeError(
