@@ -617,6 +617,19 @@ def load_products():
         )
 
 
+PRODUCTS_FILE = "products.json"
+
+
+def load_products():
+    with open(PRODUCTS_FILE, "r", encoding="utf-8") as f:
+        products_list = json.load(f)
+
+    return {
+        product["id"]: product
+        for product in products_list
+    }
+
+
 PRODUCTS = load_products()
 
 
