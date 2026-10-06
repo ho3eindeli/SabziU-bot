@@ -1,0 +1,452 @@
+[
+  {
+    "id": "fried_1",
+    "name": "بادمجان سرخ شده",
+    "category": "fried",
+    "size": "1kg",
+    "price": 370000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_2",
+    "name": "بادمجان کبابی",
+    "category": "fried",
+    "size": "1kg",
+    "price": 310000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_3",
+    "name": "بامیه سرخ شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_4",
+    "name": "پیاز داغ",
+    "category": "fried",
+    "size": "500g",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_5",
+    "name": "پیاز داغ ممتاز سبزی‌یو",
+    "category": "fried",
+    "size": "500g",
+    "price": 650000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_6",
+    "name": "خوراک لوبیا سرخ‌شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 280000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_7",
+    "name": "لوبیا سرخ شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_8",
+    "name": "لوبیا گوجه سرخ شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_9",
+    "name": "میرزا قاسمی نیمه‌آماده",
+    "category": "fried",
+    "size": "500g",
+    "price": 200000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_10",
+    "name": "ساقه کرفس سرخ شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_11",
+    "name": "سبزی کرفس سرخ‌شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_12",
+    "name": "سبزی و ساقه کرفس سرخ‌شده",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_13",
+    "name": "اسفناج",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_14",
+    "name": "سبزی قلیه ماهی",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "fried_15",
+    "name": "سبزی قرمه",
+    "category": "fried",
+    "size": "500g",
+    "price": 330000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "raw_1",
+    "name": "سبزی آش",
+    "category": "raw",
+    "size": "500g",
+    "price": 70000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "raw_2",
+    "name": "سبزی کوکو و سبزی پلو",
+    "category": "raw",
+    "size": "500g",
+    "price": 70000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "raw_3",
+    "name": "ذرت تازه و آماده پخت",
+    "category": "raw",
+    "size": "500g",
+    "price": 210000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "raw_4",
+    "name": "نخود فرنگی آماده پخت",
+    "category": "raw",
+    "size": "500g",
+    "price": 230000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_1",
+    "name": "ترشی آلبالو",
+    "category": "pickles",
+    "size": "500g",
+    "price": 350000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_2",
+    "name": "ترشی بادمجان شکم‌پر",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_3",
+    "name": "ترشی بندری / سالادی",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_4",
+    "name": "ترشی ساقه سبزی رژیمی",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_5",
+    "name": "ترشی لبو",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_6",
+    "name": "ترشی لیته بادمجان",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_7",
+    "name": "ترشی مخلوط درشت",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_8",
+    "name": "ترشی مخلوط ریز",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_9",
+    "name": "ترشی مکزیکی",
+    "category": "pickles",
+    "size": "500g",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_10",
+    "name": "ترشی نازخاتون",
+    "category": "pickles",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "pickle_11",
+    "name": "شور",
+    "category": "pickles",
+    "size": "500g",
+    "price": 150000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "syrup_1",
+    "name": "شربت آلبالو",
+    "category": "syrup",
+    "size": "1L",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "syrup_2",
+    "name": "شربت انبه زعفران",
+    "category": "syrup",
+    "size": "1L",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "syrup_3",
+    "name": "شربت بالنگو",
+    "category": "syrup",
+    "size": "1L",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "syrup_4",
+    "name": "شربت سکنجبین",
+    "category": "syrup",
+    "size": "1L",
+    "price": 300000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "syrup_5",
+    "name": "شربت هل زعفران",
+    "category": "syrup",
+    "size": "1L",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "jam_1",
+    "name": "مربای آلبالو",
+    "category": "jam",
+    "size": "500g",
+    "price": 350000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "jam_2",
+    "name": "مربای بالنگ",
+    "category": "jam",
+    "size": "500g",
+    "price": 350000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "jam_3",
+    "name": "مربای پرتقال",
+    "category": "jam",
+    "size": "500g",
+    "price": 280000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "jam_4",
+    "name": "مربای توت‌فرنگی",
+    "category": "jam",
+    "size": "500g",
+    "price": 350000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "jam_5",
+    "name": "مربای هویج",
+    "category": "jam",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "spice_1",
+    "name": "زردچوبه",
+    "category": "spices",
+    "size": "500g",
+    "price": 300000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "spice_2",
+    "name": "فلفل سیاه",
+    "category": "spices",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "spice_3",
+    "name": "نعنا خشک",
+    "category": "spices",
+    "size": "500g",
+    "price": 650000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_1",
+    "name": "عرق نعنا",
+    "category": "condiments",
+    "size": "1L",
+    "price": 220000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_2",
+    "name": "گلاب",
+    "category": "condiments",
+    "size": "1L",
+    "price": 300000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_3",
+    "name": "سرکه انگور",
+    "category": "condiments",
+    "size": "1L",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_4",
+    "name": "سرکه سیب",
+    "category": "condiments",
+    "size": "1L",
+    "price": 250000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_5",
+    "name": "آبغوره",
+    "category": "condiments",
+    "size": "1L",
+    "price": 400000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_6",
+    "name": "رب انار",
+    "category": "condiments",
+    "size": "500g",
+    "price": 350000,
+    "image": "",
+    "active": true
+  },
+  {
+    "id": "condiment_7",
+    "name": "رب گوجه فرنگی",
+    "category": "condiments",
+    "size": "500g",
+    "price": 250000,
+    "image": "",
+    "active": true
+  }
+]
