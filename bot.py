@@ -36,10 +36,7 @@ ADMIN_CHAT_IDS = [
     if x.strip()
 ]
 
-PAYMENT_CARD = os.getenv(
-    "TELEGRAM_PAYMENT_CARD",
-    "",
-)
+PAYMENT_CARD = "شماره کارت پرداختی شما"
 
 PAYMENT_OWNER = os.getenv(
     "TELEGRAM_PAYMENT_OWNER",
