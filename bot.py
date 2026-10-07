@@ -57,7 +57,7 @@ PRODUCTS_FILE = "products.json"
 if not TOKEN:
     raise RuntimeError(
         "TELEGRAM_BOT_TOKEN تنظیم نشده است."
-    )
+    ) 
 
 
 logging.basicConfig(
