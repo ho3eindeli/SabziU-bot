@@ -670,11 +670,27 @@ async def show_home(
     if user_id is None:
         user_id = str(message.from_user.id)
 
+    customer = DATA["customers"].get(
+        str(user_id)
+    )
+
+    if customer and customer.get("name", "").strip():
+        name = customer["name"].strip()
+        greeting = (
+            f"سلام {name} جان 👋\n\n"
+            "خوش برگشتی به سبزی‌یو 🌿\n\n"
+            "از دیدنت دوباره خوشحالیم."
+        )
+    else:
+        greeting = (
+            "سلام 👋\n\n"
+            "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
+            "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
+        )
+
     await send_screen(
         message,
-        "سلام 👋\n\n"
-        "به فروشگاه سبزی‌یو خوش آمدید 🌿\n\n"
-        "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:",
+        greeting,
         components=home_keyboard(),
         user_id=user_id,
     )
@@ -1679,6 +1695,14 @@ async def show_final_invoice(
         user_id
     )
 
+    if (
+        not customer_id
+        or customer_id not in DATA["customers"]
+    ):
+        if str(user_id) in DATA["customers"]:
+            customer_id = str(user_id)
+            active_customer[user_id] = customer_id
+
     customer = DATA["customers"].get(
         customer_id,
         {},
@@ -1788,9 +1812,15 @@ async def start_order(
     )
 
     if (
-        customer_id
-        and customer_id in DATA["customers"]
+        not customer_id
+        or str(customer_id) not in DATA["customers"]
     ):
+        customer_id = str(user_id)
+
+        if customer_id in DATA["customers"]:
+            active_customer[user_id] = customer_id
+
+    if customer_id in DATA["customers"]:
 
         await show_customer_profile(
             message,
@@ -2088,15 +2118,16 @@ async def create_order(
         user_id
     )
 
-    # هر حساب تلگرام فقط یک مشتری دارد؛
-    # اگر active_customer در حافظه موجود نباشد،
-    # مشتری همان user_id است.
+    # مشتری هر حساب تلگرام مستقیماً با user_id نگهداری می‌شود.
+    # اگر active_customer به‌دلیل ری‌استارت ربات خالی شده باشد،
+    # آن را از اطلاعات ذخیره‌شده بازیابی می‌کنیم.
     if (
         not customer_id
-        or customer_id not in DATA["customers"]
+        or str(customer_id) not in DATA["customers"]
     ):
-        if user_id in DATA["customers"]:
-            customer_id = user_id
+        customer_id = str(user_id)
+
+        if customer_id in DATA["customers"]:
             active_customer[user_id] = customer_id
         else:
             await show_customer_start(
