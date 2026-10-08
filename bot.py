@@ -1806,6 +1806,43 @@ async def start_order(
     )
 
 
+def admin_payment_keyboard(order_number):
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                "✅ تأیید پرداخت",
+                callback_data=(
+                    f"admin_confirm_payment_{order_number}"
+                ),
+            )
+        ],
+    ])
+
+
+def customer_courier_keyboard(shipping_method):
+    if shipping_method == "اسنپ‌باکس":
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "🛵 درخواست پیک اسنپ‌باکس",
+                    url="https://app.snapp-box.com/",
+                )
+            ]
+        ])
+
+    if shipping_method == "الوپیک":
+        return InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    "🚕 درخواست پیک الوپیک",
+                    url="https://alopeyk.com/app",
+                )
+            ]
+        ])
+
+    return None
+
+
 # =========================================================
 # ارسال رسید به مدیر
 # =========================================================
@@ -1892,6 +1929,9 @@ async def send_receipt_to_admin(
                         ),
                         photo=photo.file_id,
                         caption=caption,
+                        reply_markup=admin_payment_keyboard(
+                            order_number
+                        ),
                     )
 
                     logging.info(
@@ -3062,6 +3102,134 @@ async def on_callback(
         await query.answer()
     except Exception:
         pass
+
+    # =====================================================
+    # تأیید پرداخت توسط مدیر
+    # =====================================================
+
+    if data.startswith(
+        "admin_confirm_payment_"
+    ):
+
+        if user_id not in ADMIN_CHAT_IDS:
+            return
+
+        order_number = data[
+            len("admin_confirm_payment_"):
+        ]
+
+        order = None
+
+        for item in DATA["orders"]:
+
+            if str(
+                item.get("order_number")
+            ) == str(order_number):
+
+                order = item
+                break
+
+        if not order:
+
+            await query.answer(
+                "❌ سفارش پیدا نشد.",
+                show_alert=True,
+            )
+
+            return
+
+        if order.get("payment_status") == "پرداخت تأیید شد":
+
+            await query.answer(
+                "این پرداخت قبلاً تأیید شده است.",
+                show_alert=True,
+            )
+
+            return
+
+        order["payment_status"] = (
+            "پرداخت تأیید شد"
+        )
+
+        order["payment_confirmed_at"] = (
+            now_text()
+        )
+
+        save_data()
+
+        customer_user_id = str(
+            order.get("user_id", "")
+        )
+
+        shipping_method = order.get(
+            "shipping_method",
+            "",
+        )
+
+        customer_keyboard = (
+            customer_courier_keyboard(
+                shipping_method
+            )
+        )
+
+        if shipping_method == "اسنپ‌باکس":
+
+            customer_text = (
+                "✅ پرداخت سفارش شما تأیید شد.\n\n"
+                f"🔢 شماره سفارش: #{order_number}\n\n"
+                "🚚 برای هماهنگی ارسال، روی "
+                "دکمه زیر بزنید و درخواست پیک "
+                "اسنپ‌باکس را ثبت کنید."
+            )
+
+        elif shipping_method == "الوپیک":
+
+            customer_text = (
+                "✅ پرداخت سفارش شما تأیید شد.\n\n"
+                f"🔢 شماره سفارش: #{order_number}\n\n"
+                "🚚 برای هماهنگی ارسال، روی "
+                "دکمه زیر بزنید و درخواست پیک "
+                "الوپیک را ثبت کنید."
+            )
+
+        else:
+
+            customer_text = (
+                "✅ پرداخت سفارش شما تأیید شد.\n\n"
+                f"🔢 شماره سفارش: #{order_number}\n\n"
+                "سفارش شما آماده پیگیری و تحویل است. 🌿"
+            )
+
+        try:
+
+            await context.bot.send_message(
+                chat_id=int(customer_user_id),
+                text=customer_text,
+                reply_markup=customer_keyboard,
+            )
+
+        except Exception as e:
+
+            logging.exception(
+                f"❌ اطلاع‌رسانی تأیید پرداخت سفارش "
+                f"#{order_number} به مشتری ناموفق بود: {e}"
+            )
+
+        try:
+
+            await query.edit_message_reply_markup(
+                reply_markup=None
+            )
+
+        except Exception:
+
+            pass
+
+        await query.answer(
+            "✅ پرداخت تأیید شد و به مشتری اطلاع داده شد."
+        )
+
+        return
 
     # =====================================================
     # صفحه اول
