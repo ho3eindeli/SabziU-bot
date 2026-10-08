@@ -2320,6 +2320,29 @@ async def create_order(
         f"{order['delivery_place']}\n"
     )
 
+    # ریز اقلام سفارش
+    if order.get("items"):
+        admin_text += "\n🛍 ریز سفارش:\n"
+        for index, item in enumerate(
+            order["items"],
+            start=1,
+        ):
+            admin_text += (
+                f"{index}. {item.get('name', '')}\n"
+                f"   📦 {item.get('size', '')} × "
+                f"{item.get('quantity', 0)}\n"
+                f"   💰 {money(item.get('unit_price', 0))} "
+                f"× {item.get('quantity', 0)} = "
+                f"{money(item.get('subtotal', 0))}\n"
+            )
+
+        admin_text += (
+            f"🧾 جمع کالاها: "
+            f"{money(order.get('subtotal', 0))}\n"
+            f"🚚 هزینه ارسال: "
+            f"{money(order.get('delivery_fee', 0))}\n"
+        )
+
     if order["address"]:
 
         admin_text += (
