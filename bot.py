@@ -2088,17 +2088,22 @@ async def create_order(
         user_id
     )
 
+    # هر حساب تلگرام فقط یک مشتری دارد؛
+    # اگر active_customer در حافظه موجود نباشد،
+    # مشتری همان user_id است.
     if (
         not customer_id
         or customer_id not in DATA["customers"]
     ):
-
-        await show_customer_start(
-            message,
-            user_id,
-        )
-
-        return
+        if user_id in DATA["customers"]:
+            customer_id = user_id
+            active_customer[user_id] = customer_id
+        else:
+            await show_customer_start(
+                message,
+                user_id,
+            )
+            return
 
     delivery = current_delivery.get(
         user_id,
