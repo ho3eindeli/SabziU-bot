@@ -676,11 +676,32 @@ async def show_home(
 
     if customer and customer.get("name", "").strip():
         name = customer["name"].strip()
+
+        welcome_messages = [
+            "خوش برگشتی به سبزی‌یو 🌿\n\nاز دوباره دیدنت خوشحالیم.",
+            "دوباره به سبزی‌یو خوش اومدی 🌿\n\nخوشحالیم که باز هم مهمون ما شدی.",
+            "چه خوب که دوباره اینجایی 🌿\n\nبه سبزی‌یو خوش برگشتی.",
+            "خوش اومدی دوباره 🌿\n\nسبزی‌یو از دیدنت خوشحال شد.",
+            "دوباره دیدنت برای ما لذت‌بخشه 🌿\n\nخوش برگشتی به سبزی‌یو.",
+            "مشتری قدیمی و دوست‌داشتنی ما، خوش برگشتی 🌿",
+            "باز هم به سبزی‌یو سر زدی؛ خوش اومدی 🌿\n\nدر خدمتت هستیم.",
+            "خوشحالیم که دوباره سبزی‌یو رو انتخاب کردی 🌿\n\nخوش برگشتی.",
+            "دوباره اینجایی و این برای ما خوشحال‌کننده‌ست 🌿\n\nبه سبزی‌یو خوش اومدی.",
+            "به سبزی‌یو خوش برگشتی 🌿\n\nاز اینکه دوباره مهمون ما شدی خوشحالیم.",
+        ]
+
+        welcome_count = int(customer.get("welcome_count", 0))
+        message_index = min(welcome_count, len(welcome_messages) - 1)
+
         greeting = (
             f"سلام {name} جان 👋\n\n"
-            "خوش برگشتی به سبزی‌یو 🌿\n\n"
-            "از دیدنت دوباره خوشحالیم."
+            f"{welcome_messages[message_index]}"
         )
+
+        if welcome_count < len(welcome_messages):
+            customer["welcome_count"] = welcome_count + 1
+            DATA["customers"][str(user_id)] = customer
+            save_data()
     else:
         greeting = (
             "سلام 👋\n\n"
