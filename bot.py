@@ -1858,6 +1858,49 @@ async def start_order(
     )
 
 
+def post_order_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔄 شروع مجدد", callback_data="restart_bot")],
+        [InlineKeyboardButton("📦 پیگیری سفارش قبلی", callback_data="track_previous_orders")],
+    ])
+
+
+async def show_previous_orders(message, user_id):
+    orders = [
+        order for order in DATA.get("orders", [])
+        if str(order.get("user_id")) == str(user_id)
+        and order.get("order_status") != "تحویل شد"
+    ]
+    orders.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+
+    if not orders:
+        await send_screen(
+            message,
+            "📦 سفارش بازی برای پیگیری ندارید.\n\n"
+            "اگر مایل هستید، می‌توانید یک خرید جدید شروع کنید. 🌿",
+            components=post_order_keyboard(),
+            user_id=user_id,
+        )
+        return
+
+    lines = ["📦 سفارش‌های در حال پیگیری شما:\n"]
+    for order in orders:
+        lines.append(
+            f"🔢 سفارش #{order.get('order_number')}\n"
+            f"📅 {order.get('date', '')}\n"
+            f"💰 مبلغ: {money(order.get('total', 0))}\n"
+            f"💳 وضعیت پرداخت: {order.get('payment_status', 'نامشخص')}\n"
+            f"🚚 وضعیت سفارش: {order.get('order_status', 'در انتظار ارسال')}\n"
+        )
+
+    await send_screen(
+        message,
+        "\n".join(lines),
+        components=post_order_keyboard(),
+        user_id=user_id,
+    )
+
+
 def admin_payment_keyboard(order_number):
     return InlineKeyboardMarkup([
         [
@@ -2258,6 +2301,7 @@ async def create_order(
             "",
         ),
         "payment_status": "در انتظار پرداخت",
+        "order_status": "در انتظار پرداخت",
         "receipt": "",
     }
 
@@ -2649,14 +2693,15 @@ async def on_message(
                 user_states[user_id] = None
 
                 await send_screen(
-                      message,
-                      "✅ رسید پرداخت شما دریافت شد.\n\n"
-                      f"شماره سفارش: #{order_number}\n\n"
-                      "رسید برای مدیریت ارسال شد و پس از بررسی پرداخت، "
-                      "سفارش شما آماده خواهد شد. 🌿\n\n"
-                      "🚚 پس از تأیید پرداخت، گزینه درخواست پیک "
-                      "برای شما فعال می‌شود.",
-                      user_id=user_id,
+                    message,
+                    "✅ رسید پرداخت شما دریافت شد.\n\n"
+                    f"شماره سفارش: #{order_number}\n\n"
+                    "رسید برای مدیریت ارسال شد و پس از بررسی پرداخت، "
+                    "سفارش شما آماده خواهد شد. 🌿\n\n"
+                    "برای خرید جدید یا پیگیری سفارش قبلی، "
+                    "یکی از گزینه‌های زیر را انتخاب کنید.",
+                    components=post_order_keyboard(),
+                    user_id=user_id,
                 )
 
             else:
@@ -3232,6 +3277,8 @@ async def on_callback(
             "پرداخت تأیید شد"
         )
 
+        order["order_status"] = "در انتظار ارسال"
+
         order["payment_confirmed_at"] = (
             now_text()
         )
@@ -3539,6 +3586,20 @@ async def on_callback(
     # =====================================================
     # سبد
     # =====================================================
+
+    if data == "restart_bot":
+
+        user_states[user_id] = None
+        carts.pop(user_id, None)
+        current_delivery.pop(user_id, None)
+
+        await show_home(query.message, user_id)
+        return
+
+    if data == "track_previous_orders":
+
+        await show_previous_orders(query.message, user_id)
+        return
 
     if data == "cart":
 
