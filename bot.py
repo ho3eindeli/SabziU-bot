@@ -1928,6 +1928,36 @@ def admin_payment_keyboard(order_number):
     ])
 
 
+def customer_final_order_keyboard(shipping_method):
+    buttons = []
+
+    courier_keyboard = customer_courier_keyboard(
+        shipping_method
+    )
+
+    if courier_keyboard:
+        buttons.extend(
+            courier_keyboard.inline_keyboard
+        )
+
+    buttons.extend([
+        [
+            InlineKeyboardButton(
+                "🔄 شروع مجدد",
+                callback_data="restart_bot",
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                "📦 پیگیری سفارش قبلی",
+                callback_data="track_previous_orders",
+            )
+        ],
+    ])
+
+    return InlineKeyboardMarkup(buttons)
+
+
 def customer_courier_keyboard(shipping_method):
     if shipping_method == "اسنپ‌باکس":
         return InlineKeyboardMarkup([
@@ -2712,9 +2742,8 @@ async def on_message(
                     f"شماره سفارش: #{order_number}\n\n"
                     "رسید برای مدیریت ارسال شد و پس از بررسی پرداخت، "
                     "سفارش شما آماده خواهد شد. 🌿\n\n"
-                    "برای خرید جدید یا پیگیری سفارش قبلی، "
-                    "یکی از گزینه‌های زیر را انتخاب کنید.",
-                    components=post_order_keyboard(),
+                    "پس از تأیید پرداخت توسط مدیریت، "
+                    "گزینه‌های بعدی برای شما نمایش داده می‌شود.",
                     user_id=user_id,
                 )
 
@@ -3344,10 +3373,33 @@ async def on_callback(
 
         try:
 
-            await context.bot.send_message(
+            # پیام قبلی مشتری (دریافت رسید) دیگر پیام نهایی نیست؛
+            # آن را حذف می‌کنیم تا فقط پیام نهایی سفارش باقی بماند.
+            previous_customer_message = last_bot_message.get(
+                customer_user_id
+            )
+
+            if previous_customer_message:
+                try:
+                    await previous_customer_message.delete()
+                except Exception:
+                    pass
+
+                last_bot_message.pop(
+                    customer_user_id,
+                    None,
+                )
+
+            final_customer_message = await context.bot.send_message(
                 chat_id=int(customer_user_id),
                 text=customer_text,
-                reply_markup=customer_keyboard,
+                reply_markup=customer_final_order_keyboard(
+                    shipping_method
+                ),
+            )
+
+            last_bot_message[customer_user_id] = (
+                final_customer_message
             )
 
         except Exception as e:
