@@ -1083,6 +1083,13 @@ def cart_keyboard(user_id):
             )
         ])
 
+    buttons.append([
+        InlineKeyboardButton(
+            "➕ ادامه خرید",
+            callback_data="shop",
+        )
+    ])
+
     if carts.get(user_id):
 
         buttons.append([
@@ -1091,13 +1098,6 @@ def cart_keyboard(user_id):
                 callback_data="start_order",
             )
         ])
-
-    buttons.append([
-        InlineKeyboardButton(
-            "➕ ادامه خرید",
-            callback_data="shop",
-        )
-    ])
 
     buttons.append([
         InlineKeyboardButton(
