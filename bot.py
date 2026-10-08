@@ -690,18 +690,32 @@ async def show_home(
             "به سبزی‌یو خوش برگشتی 🌿\n\nاز اینکه دوباره مهمون ما شدی خوشحالیم.",
         ]
 
+        import random
+
+        # هر مشتری یک ترتیب تصادفی مخصوص خودش دارد.
+        # بعد از نمایش هر ۱۰ پیام، چرخه دوباره از ابتدا شروع می‌شود.
+        welcome_order = customer.get("welcome_order")
+
+        if (
+            not isinstance(welcome_order, list)
+            or sorted(welcome_order) != list(range(len(welcome_messages)))
+        ):
+            welcome_order = list(range(len(welcome_messages)))
+            random.shuffle(welcome_order)
+            customer["welcome_order"] = welcome_order
+
         welcome_count = int(customer.get("welcome_count", 0))
-        message_index = min(welcome_count, len(welcome_messages) - 1)
+        cycle_index = welcome_count % len(welcome_messages)
+        message_index = welcome_order[cycle_index]
 
         greeting = (
             f"سلام {name} جان 👋\n\n"
             f"{welcome_messages[message_index]}"
         )
 
-        if welcome_count < len(welcome_messages):
-            customer["welcome_count"] = welcome_count + 1
-            DATA["customers"][str(user_id)] = customer
-            save_data()
+        customer["welcome_count"] = welcome_count + 1
+        DATA["customers"][str(user_id)] = customer
+        save_data()
     else:
         greeting = (
             "سلام 👋\n\n"
