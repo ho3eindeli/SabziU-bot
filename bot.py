@@ -1052,7 +1052,7 @@ def cart_keyboard(user_id):
 
         buttons.append([
             InlineKeyboardButton(
-                "📦 ثبت سفارش",
+                "📦 ثبت سفارش (اتمام خرید)",
                 callback_data="start_order",
             )
         ])
@@ -1822,9 +1822,10 @@ async def start_order(
 
     if customer_id in DATA["customers"]:
 
-        await show_customer_profile(
+        # مشتری قدیمی؛ در زمان ثبت سفارش دوباره پروفایل را نشان نده.
+        # مستقیماً به انتخاب محل تحویل برو.
+        await show_delivery(
             message,
-            customer_id,
             user_id,
         )
 
