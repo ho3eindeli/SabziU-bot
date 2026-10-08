@@ -1928,6 +1928,15 @@ def admin_payment_keyboard(order_number):
     ])
 
 
+def post_payment_shipping_keyboard():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("🚕 الوپیک", callback_data="post_payment_alopik")],
+        [InlineKeyboardButton("🛵 اسنپ‌باکس", callback_data="post_payment_snapp")],
+        [InlineKeyboardButton("🔄 شروع مجدد", callback_data="restart_bot")],
+        [InlineKeyboardButton("📦 پیگیری سفارش قبلی", callback_data="track_previous_orders")],
+    ])
+
+
 def customer_final_order_keyboard(shipping_method):
     buttons = []
 
@@ -3338,38 +3347,14 @@ async def on_callback(
         )
 
         customer_keyboard = (
-            customer_courier_keyboard(
-                shipping_method
-            )
+            post_payment_shipping_keyboard()
         )
 
-        if shipping_method == "اسنپ‌باکس":
-
-            customer_text = (
-                "✅ پرداخت سفارش شما تأیید شد.\n\n"
-                f"🔢 شماره سفارش: #{order_number}\n\n"
-                "🚚 برای هماهنگی ارسال، روی "
-                "دکمه زیر بزنید و درخواست پیک "
-                "اسنپ‌باکس را ثبت کنید."
-            )
-
-        elif shipping_method == "الوپیک":
-
-            customer_text = (
-                "✅ پرداخت سفارش شما تأیید شد.\n\n"
-                f"🔢 شماره سفارش: #{order_number}\n\n"
-                "🚚 برای هماهنگی ارسال، روی "
-                "دکمه زیر بزنید و درخواست پیک "
-                "الوپیک را ثبت کنید."
-            )
-
-        else:
-
-            customer_text = (
-                "✅ پرداخت سفارش شما تأیید شد.\n\n"
-                f"🔢 شماره سفارش: #{order_number}\n\n"
-                "سفارش شما آماده پیگیری و تحویل است. 🌿"
-            )
+        customer_text = (
+            "✅ پرداخت سفارش شما تأیید شد.\n\n"
+            f"🔢 شماره سفارش: #{order_number}\n\n"
+            "🚚 حالا روش ارسال را انتخاب کنید:"
+        )
 
         try:
 
@@ -4427,6 +4412,50 @@ async def on_callback(
         return
 
     # =====================================================
+    if data in ("post_payment_alopik", "post_payment_snapp"):
+
+        shipping_method = (
+            "الوپیک"
+            if data == "post_payment_alopik"
+            else "اسنپ‌باکس"
+        )
+
+        target_order = None
+
+        for item in reversed(DATA.get("orders", [])):
+            if (
+                str(item.get("user_id")) == str(user_id)
+                and item.get("payment_status") == "پرداخت تأیید شد"
+                and item.get("order_status") != "تحویل شد"
+            ):
+                target_order = item
+                break
+
+        if not target_order:
+            await query.answer(
+                "❌ سفارش قابل پیگیری پیدا نشد.",
+                show_alert=True,
+            )
+            return
+
+        target_order["shipping_method"] = shipping_method
+        target_order["order_status"] = "در انتظار ارسال"
+        save_data()
+
+        await send_screen_callback(
+            query,
+            (
+                "🚚 روش ارسال انتخاب شد.\n\n"
+                f"🔢 شماره سفارش: #{target_order.get('order_number')}\n"
+                f"📦 روش ارسال: {shipping_method}\n\n"
+                "حالا می‌توانید درخواست پیک را ثبت کنید. 🌿"
+            ),
+            components=customer_final_order_keyboard(
+                shipping_method
+            ),
+        )
+        return
+
     # اصلاح سبد
     # =====================================================
 
@@ -4491,17 +4520,6 @@ async def show_shipping_or_invoice(
         user_id,
         {},
     )
-
-    if delivery.get("address"):
-
-        await send_screen(
-            message,
-            "🚚 روش ارسال را انتخاب کنید:",
-            components=shipping_keyboard(),
-            user_id=user_id,
-        )
-
-        return
 
     await show_final_invoice(
         message,
