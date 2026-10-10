@@ -257,6 +257,7 @@ current_delivery = {}
 
 # پیام فعال ربات برای هر کاربر
 last_bot_message = {}
+invoice_messages = {}
 
 
 def save_data():
@@ -1108,6 +1109,40 @@ def cart_keyboard(user_id):
 
     return InlineKeyboardMarkup(buttons)
 
+async def update_invoice_message(
+    message,
+    user_id,
+    text,
+    components=None,
+):
+    """Keep the customer's invoice as a separate message while browsing."""
+    invoice_message = invoice_messages.get(user_id)
+
+    if invoice_message:
+        try:
+            await invoice_message.edit_text(
+                text,
+                reply_markup=components,
+            )
+            return invoice_message
+        except Exception as e:
+            logging.debug(
+                f"ویرایش فاکتور قبلی ناموفق بود: {e}"
+            )
+            invoice_messages.pop(user_id, None)
+
+    try:
+        new_message = await message.reply_text(
+            text,
+            reply_markup=components,
+        )
+        invoice_messages[user_id] = new_message
+        return new_message
+    except Exception as e:
+        logging.error(f"ارسال فاکتور ناموفق بود: {e}")
+        return None
+
+
 async def show_cart(
     message,
     user_id,
@@ -1165,13 +1200,13 @@ async def show_cart(
         f"{money(subtotal)}"
     )
 
-    await send_screen(
+    await update_invoice_message(
         message,
+        user_id,
         "\n".join(lines),
         components=cart_keyboard(
             user_id
         ),
-        user_id=user_id,
     )
 
 
@@ -1818,11 +1853,11 @@ async def show_final_invoice(
             f"{delivery['shipping_method']}\n"
         )
 
-    await send_screen(
+    await update_invoice_message(
         message,
+        user_id,
         text,
         components=final_invoice_keyboard(),
-        user_id=user_id,
     )
 
 
