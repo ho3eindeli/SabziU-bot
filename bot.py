@@ -1663,13 +1663,13 @@ def shipping_keyboard():
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
-                "🚕 الوپیک",
+                "🛵 الوپیک",
                 callback_data="shipping_alopik",
             )
         ],
         [
             InlineKeyboardButton(
-                "🛵 اسنپ‌باکس",
+                "🚗 اسنپ‌باکس",
                 callback_data="shipping_snapp",
             )
         ],
@@ -1930,8 +1930,8 @@ def admin_payment_keyboard(order_number):
 
 def post_payment_shipping_keyboard():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🚕 الوپیک", callback_data="post_payment_alopik")],
-        [InlineKeyboardButton("🛵 اسنپ‌باکس", callback_data="post_payment_snapp")],
+        [InlineKeyboardButton("🛵 الوپیک", callback_data="post_payment_alopik")],
+        [InlineKeyboardButton("🚗 اسنپ‌باکس", callback_data="post_payment_snapp")],
     ])
 
 
@@ -1970,7 +1970,7 @@ def customer_courier_keyboard(shipping_method):
         return InlineKeyboardMarkup([
             [
                 InlineKeyboardButton(
-                    "🛵 درخواست پیک اسنپ‌باکس",
+                    "🚗 درخواست پیک اسنپ‌باکس",
                     url="https://app.snapp-box.com/",
                 )
             ]
@@ -1980,7 +1980,7 @@ def customer_courier_keyboard(shipping_method):
         return InlineKeyboardMarkup([
             [
                 InlineKeyboardButton(
-                    "🚕 درخواست پیک الوپیک",
+                    "🛵 درخواست پیک الوپیک",
                     url="https://alopeyk.com/app",
                 )
             ]
