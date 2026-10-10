@@ -1932,8 +1932,6 @@ def post_payment_shipping_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🚕 الوپیک", callback_data="post_payment_alopik")],
         [InlineKeyboardButton("🛵 اسنپ‌باکس", callback_data="post_payment_snapp")],
-        [InlineKeyboardButton("🔄 شروع مجدد", callback_data="restart_bot")],
-        [InlineKeyboardButton("📦 پیگیری سفارش قبلی", callback_data="track_previous_orders")],
     ])
 
 
@@ -3378,9 +3376,7 @@ async def on_callback(
             final_customer_message = await context.bot.send_message(
                 chat_id=int(customer_user_id),
                 text=customer_text,
-                reply_markup=customer_final_order_keyboard(
-                    shipping_method
-                ),
+                reply_markup=customer_keyboard,
             )
 
             last_bot_message[customer_user_id] = (
