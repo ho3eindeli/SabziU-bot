@@ -1713,6 +1713,12 @@ def final_invoice_keyboard():
                 callback_data="cancel_cart",
             )
         ],
+        [
+            InlineKeyboardButton(
+                "⬅️ بازگشت به انتخاب محل تحویل",
+                callback_data="delivery",
+            )
+        ],
     ])
 
 
